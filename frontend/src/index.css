@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-bg-main: var(--bg-main);
+  --color-bg-card: var(--bg-card);
+  --color-border-main: var(--border-main);
+  --color-txt-primary: var(--text-primary);
+  --color-txt-secondary: var(--text-secondary);
+  --color-glow: var(--glow-color);
+}
+
+:root {
+  color-scheme: dark light;
+}
+
+/* Base Themes */
+:root, .theme-dark {
+  --brand-primary: #a855f7; /* Purple */
+  --brand-secondary: #6366f1; /* Indigo */
+  --bg-main: #0a0b10;
+  --bg-card: rgba(17, 18, 25, 0.75);
+  --border-main: rgba(255, 255, 255, 0.08);
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --glow-color: rgba(168, 85, 247, 0.35);
+  --grid-color: rgba(255, 255, 255, 0.015);
+
+  /* Force override Tailwind's compiled variables */
+  --color-brand-primary: #a855f7;
+  --color-brand-secondary: #6366f1;
+  --color-bg-main: #0a0b10;
+  --color-bg-card: rgba(17, 18, 25, 0.75);
+  --color-border-main: rgba(255, 255, 255, 0.08);
+  --color-txt-primary: #f3f4f6;
+  --color-txt-secondary: #9ca3af;
+  --color-glow: rgba(168, 85, 247, 0.35);
+}
+
+.theme-light {
+  --brand-primary: #4f46e5; /* Royal Blue/Indigo */
+  --brand-secondary: #06b6d4; /* Bright Cyan */
+  --bg-main: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --border-main: rgba(0, 0, 0, 0.08);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --glow-color: rgba(79, 70, 229, 0.15);
+  --grid-color: rgba(0, 0, 0, 0.015);
+
+  /* Force override Tailwind's compiled variables */
+  --color-brand-primary: #4f46e5;
+  --color-brand-secondary: #06b6d4;
+  --color-bg-main: #f8fafc;
+  --color-bg-card: rgba(255, 255, 255, 0.85);
+  --color-border-main: rgba(0, 0, 0, 0.08);
+  --color-txt-primary: #0f172a;
+  --color-txt-secondary: #475569;
+  --color-glow: rgba(79, 70, 229, 0.15);
+}
+
+.theme-cyberpunk {
+  --brand-primary: #ff007f; /* Neon Hot Pink */
+  --brand-secondary: #00f0ff; /* Neon Electric Cyan */
+  --bg-main: #030307;
+  --bg-card: rgba(8, 8, 16, 0.9);
+  --border-main: rgba(0, 240, 255, 0.25);
+  --text-primary: #39ff14; /* Neon Green */
+  --text-secondary: #ff007f; /* Pink */
+  --glow-color: rgba(0, 240, 255, 0.45);
+  --grid-color: rgba(0, 240, 255, 0.03);
+
+  /* Force override Tailwind's compiled variables */
+  --color-brand-primary: #ff007f;
+  --color-brand-secondary: #00f0ff;
+  --color-bg-main: #030307;
+  --color-bg-card: rgba(8, 8, 16, 0.9);
+  --color-border-main: rgba(0, 240, 255, 0.25);
+  --color-txt-primary: #39ff14;
+  --color-txt-secondary: #ff007f;
+  --color-glow: rgba(0, 240, 255, 0.45);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-main);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-primary);
+}
+
+/* Premium Background Tech Grid */
+.tech-grid {
+  background-image: 
+    linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Shimmer Animation for skeletons */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s infinite linear;
+}
+
+.theme-light .shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.03) 25%,
+    rgba(0, 0, 0, 0.06) 50%,
+    rgba(0, 0, 0, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s infinite linear;
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--border-main);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Neon glow box-shadow */
+.neon-glow {
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+.neon-text-glow {
+  text-shadow: 0 0 8px var(--glow-color);
+}
+
+/* Explicit Theme Text Utility Overrides */
+.text-txt-primary {
+  color: var(--text-primary) !important;
+}
+.text-txt-secondary {
+  color: var(--text-secondary) !important;
+}
+.text-brand-primary {
+  color: var(--brand-primary) !important;
+}
+.text-brand-secondary {
+  color: var(--brand-secondary) !important;
+}
