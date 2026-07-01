@@ -5,7 +5,17 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const redisUrl = process.env.REDIS_URL;
-export const connection = redisUrl
+
+const isRenderInternalRedis = (url) => {
+  try {
+    const parsed = new URL(url);
+    return !parsed.hostname.includes('.') && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
+
+export const connection = (redisUrl && (!isRenderInternalRedis(redisUrl) || process.env.RENDER))
   ? new IORedis(redisUrl, {
       maxRetriesPerRequest: null,
     })
@@ -16,7 +26,7 @@ export const connection = redisUrl
     });
 
 connection.on("error", (error) => {
-  console.error("[❌ Redis Connection Error]:", error);
+  console.error("[❌ Redis Connection Error]:", error.message);
 });
 
 // Define and export the queue for producing jobs

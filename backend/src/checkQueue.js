@@ -5,7 +5,17 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const redisUrl = process.env.REDIS_URL;
-const connection = redisUrl
+
+const isRenderInternalRedis = (url) => {
+  try {
+    const parsed = new URL(url);
+    return !parsed.hostname.includes('.') && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
+
+const connection = (redisUrl && (!isRenderInternalRedis(redisUrl) || process.env.RENDER))
   ? new IORedis(redisUrl, {
       maxRetriesPerRequest: null,
     })
@@ -16,7 +26,7 @@ const connection = redisUrl
     });
 
 connection.on("error", (error) => {
-  console.error("[❌ checkQueue Redis Connection Error]:", error);
+  console.error("[❌ checkQueue Redis Connection Error]:", error.message);
 });
 
 async function checkQueue() {
