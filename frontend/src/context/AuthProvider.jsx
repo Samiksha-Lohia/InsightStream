@@ -11,6 +11,9 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to ensure we have the correct base URL
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   // Check for stored credentials on startup
   useEffect(() => {
     const checkAuth = () => {
@@ -44,7 +47,7 @@ export const AuthProvider = ({ children }) => {
 
   // Perform Login request
   const login = async (email, password) => {
-    const response = await fetch('http://localhost:3000/api/auth/login', {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +67,7 @@ export const AuthProvider = ({ children }) => {
 
   // Perform Register request
   const register = async (username, email, password) => {
-    const response = await fetch('http://localhost:3000/api/auth/register', {
+    const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -97,7 +100,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error('You must be logged in to update your password');
     }
 
-    const response = await fetch('http://localhost:3000/api/auth/update-password', {
+    const response = await fetch(`${API_URL}/api/auth/update-password`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
