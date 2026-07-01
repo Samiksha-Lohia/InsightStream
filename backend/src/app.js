@@ -1,8 +1,15 @@
 import express from 'express';
 import documentRoutes from "./routes/documentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import cors from 'cors';
 
 const app=express();
+
+app.use(cors({
+  origin: ["https://your-frontend-domain.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true 
+}));
 
 // CORS Middleware to allow requests from frontend
 app.use((req, res, next) => {

@@ -19,8 +19,10 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Connect to backend Socket.io server
-    const socketInstance = io('http://localhost:3000');
-
+    const socketInstance = io(import.meta.env.VITE_API_URL, {
+      transports: ['websocket'], 
+      withCredentials: true,
+    });
     socketInstance.on('connect', () => {
       console.log('[🔌 WebSocket] Connected at root level');
     });
