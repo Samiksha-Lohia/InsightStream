@@ -9,6 +9,13 @@ import { initSocketListeners } from "./utils/socketListeners.js";
 
 dotenv.config();
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "InsightStream Backend API is active"
+  });
+});
+
 const server = http.createServer(app);
 
 // Initialize IO
