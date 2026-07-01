@@ -1,5 +1,6 @@
 import { Cpu, Terminal, FileText, BarChart3, Clock, HelpCircle, HardDrive, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { generateTitle } from '../utils/titleGenerator';
 
 export default function ResultCard({ document }) {
   const { _id, content, insights, createdAt } = document;
@@ -88,7 +89,7 @@ export default function ResultCard({ document }) {
             </span>
           </div>
           <h2 className="text-2xl font-black text-txt-primary tracking-tight">
-            AI Content Analysis Report
+            {generateTitle(insights, content)}
           </h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

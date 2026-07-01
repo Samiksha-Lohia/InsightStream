@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketProvider';
 import { Search, Calendar, FileText, ArrowRight, RefreshCw, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
+import { generateTitle } from '../utils/titleGenerator';
+import ResultCard from './ResultCard';
 
 export default function Dashboard({ onSelectItem }) {
   const { activeJobs } = useSocket();
@@ -9,24 +11,30 @@ export default function Dashboard({ onSelectItem }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDocId, setSelectedDocId] = useState(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const limit = 6; // Limit items per page for clean dashboard design
+  const limit = 20; // Limit items per page for clean dashboard design
 
   const fetchDocuments = async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:3000/api/documents?limit=${limit}&page=${page}`);
+      const token = localStorage.getItem('insightstream_token');
+      const response = await fetch(`http://localhost:3000/api/documents?page=${page}&limit=20`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
       if (data.success) {
         setDocuments(data.documents);
-        setTotalPages(data.pagination.pages);
-        setTotalCount(data.pagination.total);
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.totalItems);
       } else {
         throw new Error(data.message || 'Failed to retrieve history');
       }
@@ -68,6 +76,27 @@ export default function Dashboard({ onSelectItem }) {
       (doc.insights && doc.insights.toLowerCase().includes(term))
     );
   });
+
+  if (selectedDocId) {
+    const selectedDoc = documents.find(d => d._id === selectedDocId);
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -15 }}
+        className="max-w-5xl w-full mx-auto space-y-6 py-2"
+      >
+        <button
+          onClick={() => setSelectedDocId(null)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-border-main text-xs font-semibold hover:bg-white/10 transition-all text-txt-primary cursor-pointer group w-fit"
+        >
+          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Dashboard
+        </button>
+        {selectedDoc && <ResultCard document={selectedDoc} />}
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -162,7 +191,7 @@ export default function Dashboard({ onSelectItem }) {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2, delay: idx * 0.03 }}
-                    onClick={() => !isProcessing && onSelectItem(doc._id)}
+                    onClick={() => !isProcessing && setSelectedDocId(doc._id)}
                     className={`glass-panel p-5 rounded-2xl border flex flex-col justify-between gap-4 group cursor-pointer transition-all duration-300 hover:border-brand-primary/40 hover:-translate-y-0.5 hover:shadow-lg ${
                       isProcessing ? 'border-amber-500/20 bg-amber-500/5 cursor-not-allowed pointer-events-none' : ''
                     } ${isFailed ? 'border-rose-500/20 bg-rose-500/5' : 'border-border-main'}`}
@@ -196,11 +225,14 @@ export default function Dashboard({ onSelectItem }) {
 
                       {/* Content Snippet */}
                       <div className="mt-3 space-y-1.5">
+                        <h4 className="text-sm font-bold text-txt-primary truncate group-hover:text-brand-primary transition-colors">
+                          {status === 'Completed' ? generateTitle(doc.insights, doc.content) : 'Processing Analysis...'}
+                        </h4>
                         <div className="flex items-center gap-1.5 text-xs font-mono text-txt-secondary">
                           <FileText className="w-3.5 h-3.5" />
                           ID: {doc._id.substring(0, 16)}...
                         </div>
-                        <p className="text-sm text-txt-secondary line-clamp-3 leading-relaxed mt-1 font-mono">
+                        <p className="text-xs text-txt-secondary line-clamp-2 leading-relaxed mt-1 font-mono">
                           {doc.content}
                         </p>
                       </div>
@@ -223,14 +255,14 @@ export default function Dashboard({ onSelectItem }) {
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center pt-4 border-t border-border-main">
+        <div className="flex justify-between items-center pt-6 border-t border-border-main/50 mt-4">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1 || loading}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 border border-border-main text-xs font-semibold hover:bg-white/10 transition-all text-txt-primary disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/5 border border-border-main text-xs font-semibold hover:bg-white/10 transition-all text-txt-primary disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
-            Previous
+            Previous Page
           </button>
 
           <span className="text-xs font-mono text-txt-secondary">
@@ -240,9 +272,9 @@ export default function Dashboard({ onSelectItem }) {
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages || loading}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 border border-border-main text-xs font-semibold hover:bg-white/10 transition-all text-txt-primary disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/5 border border-border-main text-xs font-semibold hover:bg-white/10 transition-all text-txt-primary disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
-            Next
+            Next Page
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

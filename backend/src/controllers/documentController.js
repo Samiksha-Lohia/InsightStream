@@ -1,15 +1,24 @@
 import Document from "../models/Document.js";
 import { documentQueue, connection as redisClient } from "../config/queue.js";
 
+// POST /api/upload
 export const uploadDocument = async (req, res) => {
   try {
     // 1. Assume file info is already processed (Multer, etc.)
     const { content } = req.body;
 
-    // 2. Save document in MongoDB
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        message: "Document content is required",
+      });
+    }
+
+    // 2. Save document in MongoDB with association to the authenticated user
     const document = await Document.create({
       content,
       status: "Pending", // important for tracking async work
+      user: req.user._id,
     });
 
     // 3. Push job to Redis queue
@@ -41,21 +50,24 @@ export const getDocumentById = async (req, res) => {
     // 2. The Cache Check: Check if document exists in Redis memory
     const cachedDocument = await redisClient.get(id);
 
-    // 3. Handle Cache Hit: return it instantly, skipping MongoDB
+    // 3. Handle Cache Hit: return it instantly, skipping MongoDB (verify user ownership)
     if (cachedDocument) {
-      return res.status(200).json({
-        success: true,
-        document: JSON.parse(cachedDocument),
-      });
+      const parsedDoc = JSON.parse(cachedDocument);
+      if (parsedDoc.user && parsedDoc.user.toString() === req.user._id.toString()) {
+        return res.status(200).json({
+          success: true,
+          document: parsedDoc,
+        });
+      }
     }
 
-    // 4. Handle Cache Miss: execute standard MongoDB query
-    const document = await Document.findById(id);
+    // 4. Handle Cache Miss: execute standard MongoDB query scoped to current user
+    const document = await Document.findOne({ _id: id, user: req.user._id });
 
     if (!document) {
       return res.status(404).json({
         success: false,
-        message: "Document not found",
+        message: "Document not found or unauthorized",
       });
     }
 
@@ -83,21 +95,22 @@ export const getAllDocuments = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const skip = (page - 1) * limit;
 
-    const documents = await Document.find()
+    // Find only documents belonging to the authenticated user
+    const documents = await Document.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Document.countDocuments();
+    const total = await Document.countDocuments({ user: req.user._id });
 
     return res.status(200).json({
       success: true,
       documents,
       pagination: {
-        total,
-        limit,
-        page,
-        pages: Math.ceil(total / limit),
+        totalItems: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        limit: limit
       },
     });
   } catch (error) {

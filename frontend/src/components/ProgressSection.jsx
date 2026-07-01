@@ -47,7 +47,12 @@ export default function ProgressSection({ documentId, onBack }) {
   useEffect(() => {
     const checkInitialState = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/documents/${documentId}`);
+        const token = localStorage.getItem('insightstream_token');
+        const res = await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         
         if (data.success && data.document) {
@@ -83,7 +88,7 @@ export default function ProgressSection({ documentId, onBack }) {
 
   // 2. Minimum 30s Simulated Progress Engine
   useEffect(() => {
-    if (!shouldSimulate) return;
+    if (!shouldSimulate || isDone) return;
 
     // Catch up elapsed simulated progress if page navigation remount occurred
     const activeJob = activeJobs[documentId];
@@ -105,7 +110,7 @@ export default function ProgressSection({ documentId, onBack }) {
     }, 100);
 
     return () => clearInterval(timer);
-  }, [shouldSimulate, documentId]);
+  }, [shouldSimulate, documentId, isDone]);
 
   // 3. Monitor WebSocket / Database State for Completion
   const jobState = activeJobs[documentId];
@@ -128,7 +133,12 @@ export default function ProgressSection({ documentId, onBack }) {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
     try {
-      const res = await fetch(`http://localhost:3000/api/documents/${documentId}`);
+      const token = localStorage.getItem('insightstream_token');
+      const res = await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (data.success && data.document) {
         setDocumentData(data.document);
@@ -154,6 +164,7 @@ export default function ProgressSection({ documentId, onBack }) {
   // We transition immediately when insights and documentData are fetched (fast-forwarding)
   useEffect(() => {
     if (insights && documentData && !isDone) {
+      setShouldSimulate(false);
       setLocalProgress(100);
       setIsDone(true);
       removeJob(documentId); // Clear job tracking

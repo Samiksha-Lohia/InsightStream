@@ -1,5 +1,6 @@
 import express from 'express';
 import documentRoutes from "./routes/documentRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app=express();
 
@@ -15,6 +16,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use("/api/auth", authRoutes);
 app.use("/api", documentRoutes);
 
 export {app};

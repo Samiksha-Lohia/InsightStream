@@ -16,19 +16,32 @@ export const initSocketListeners = (io) => {
     }
   });
 
-  documentQueueEvents.on("completed", async ({ jobId }) => {
+  documentQueueEvents.on("completed", async ({ jobId, returnvalue }) => {
     try {
-      const job = await documentQueue.getJob(jobId);
-      if (job && job.name === "process-document") {
-        console.log(`[🔌 WebSocket] Broadcasting completion: Job ${jobId} completed`);
+      let documentId;
+      if (returnvalue) {
+        const parsed = typeof returnvalue === "string" ? JSON.parse(returnvalue) : returnvalue;
+        documentId = parsed.documentId;
+      }
+
+      // Fallback: Query BullMQ if returnvalue parsing fails or is empty
+      if (!documentId) {
+        const job = await documentQueue.getJob(jobId);
+        if (job && job.name === "process-document") {
+          documentId = job.data.documentId;
+        }
+      }
+
+      if (documentId) {
+        console.log(`[🔌 WebSocket] Broadcasting completion: Document ID ${documentId}`);
         io.emit("progress", {
-          documentId: job.data.documentId,
+          documentId: documentId,
           progress: 100,
           status: "Completed",
         });
       }
     } catch (err) {
-      console.error("[🔌 WebSocket] Error fetching job for completed event:", err);
+      console.error("[🔌 WebSocket] Error during completed event broadcasting:", err);
     }
   });
 };

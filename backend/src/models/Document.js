@@ -13,6 +13,11 @@ const documentSchema = new mongoose.Schema(
         },
         insights:{
             type : mongoose.Schema.Types.Mixed,
+        },
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
         }
     },
     {

@@ -74,6 +74,7 @@ const documentWorker = new Worker(
       // Tell the queue we are 100% finished!
       await job.updateProgress(100);
       console.log(`[⚙️ Worker] Job completed successfully for Document ID: ${documentId}`);
+      return { documentId, status: "Completed" };
 
     } catch (error) {
       // Defensive Error Handling
