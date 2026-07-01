@@ -4,10 +4,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const connection = new IORedis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null,
+const redisUrl = process.env.REDIS_URL;
+const connection = redisUrl
+  ? new IORedis(redisUrl, {
+      maxRetriesPerRequest: null,
+    })
+  : new IORedis({
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: parseInt(process.env.REDIS_PORT || "6379", 10),
+      maxRetriesPerRequest: null,
+    });
+
+connection.on("error", (error) => {
+  console.error("[❌ checkQueue Redis Connection Error]:", error);
 });
 
 async function checkQueue() {

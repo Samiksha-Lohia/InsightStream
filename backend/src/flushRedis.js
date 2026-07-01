@@ -4,9 +4,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const flush = async () => {
-  const connection = new IORedis({
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  const redisUrl = process.env.REDIS_URL;
+  const connection = redisUrl
+    ? new IORedis(redisUrl)
+    : new IORedis({
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      });
+
+  connection.on("error", (error) => {
+    console.error("[❌ flushRedis Connection Error]:", error);
   });
 
   try {

@@ -17,10 +17,19 @@ const groq = new OpenAI({
 });
 
 // 3. Initialize Redis Connection
-const connection = new IORedis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  maxRetriesPerRequest: null, // Required for BullMQ workers
+const redisUrl = process.env.REDIS_URL;
+const connection = redisUrl
+  ? new IORedis(redisUrl, {
+      maxRetriesPerRequest: null,
+    })
+  : new IORedis({
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: parseInt(process.env.REDIS_PORT || "6379", 10),
+      maxRetriesPerRequest: null, // Required for BullMQ workers
+    });
+
+connection.on("error", (error) => {
+  console.error("[❌ Worker Redis Connection Error]:", error);
 });
 
 // 4. Create the Worker
