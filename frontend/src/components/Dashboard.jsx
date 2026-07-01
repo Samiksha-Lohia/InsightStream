@@ -4,6 +4,7 @@ import { useSocket } from '../context/SocketProvider';
 import { Search, Calendar, FileText, ArrowRight, RefreshCw, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
 import { generateTitle } from '../utils/titleGenerator';
 import ResultCard from './ResultCard';
+import { API_URL } from '../config';
 
 export default function Dashboard({ onSelectItem }) {
   const { activeJobs } = useSocket();
@@ -24,7 +25,7 @@ export default function Dashboard({ onSelectItem }) {
     setError(null);
     try {
       const token = localStorage.getItem('insightstream_token');
-      const response = await fetch(`http://localhost:3000/api/documents?page=${page}&limit=20`, {
+      const response = await fetch(`${API_URL}/api/documents?page=${page}&limit=20`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

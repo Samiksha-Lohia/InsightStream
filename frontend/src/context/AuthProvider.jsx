@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 const AuthContext = createContext(null);
 
@@ -11,8 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to ensure we have the correct base URL
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 
   // Check for stored credentials on startup
   useEffect(() => {

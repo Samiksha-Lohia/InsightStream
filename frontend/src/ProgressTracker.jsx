@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { API_URL } from './config';
 
 export default function ProgressTracker({ documentId, onBack }) {
   const [progress, setProgress] = useState(0);
@@ -10,7 +11,7 @@ export default function ProgressTracker({ documentId, onBack }) {
 
   useEffect(() => {
     // 1. Establish connection to Socket.io server
-    const socket = io('http://localhost:3000');
+    const socket = io(API_URL);
 
     socket.on('connect', () => {
       console.log('[🔌 WebSocket] Connected to server');
@@ -49,7 +50,7 @@ export default function ProgressTracker({ documentId, onBack }) {
     if (progress === 100 || status === 'Completed') {
       const fetchDocument = async () => {
         try {
-          const response = await fetch(`http://localhost:3000/api/documents/${documentId}`);
+          const response = await fetch(`${API_URL}/api/documents/${documentId}`);
           const data = await response.json();
           if (data.success && data.document) {
             setInsights(data.document.insights);

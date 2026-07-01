@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_URL } from './config';
 
 export default function UploadInterface({ onUploadSuccess }) {
   const [content, setContent] = useState('');
@@ -14,7 +15,7 @@ export default function UploadInterface({ onUploadSuccess }) {
 
     try {
       // Sending the payload to your Express Phase 1/2 POST route
-      const response = await fetch('http://localhost:3000/api/upload', {
+      const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),

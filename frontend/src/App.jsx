@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { API_URL } from './config';
 import Header from './components/Header';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -88,7 +89,7 @@ function AnimatedApp({ theme, setTheme }) {
       addToast('Uploading document to analysis queue...', 'info');
       
       const currentToken = token || localStorage.getItem('insightstream_token');
-      const response = await fetch('http://localhost:3000/api/upload', {
+      const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

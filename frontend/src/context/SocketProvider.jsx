@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { API_URL } from '../config';
 
 const SocketContext = createContext(null);
 
@@ -19,7 +20,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Connect to backend Socket.io server
-    const socketInstance = io(import.meta.env.VITE_API_URL, {
+    const socketInstance = io(API_URL, {
       transports: ['websocket'], 
       withCredentials: true,
     });

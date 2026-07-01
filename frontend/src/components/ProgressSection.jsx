@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { useSocket } from '../context/SocketProvider';
+import { API_URL } from '../config';
 import { useToast } from '../context/ToastProvider';
 import SkeletonView from './SkeletonView';
 import ResultCard from './ResultCard';
@@ -48,7 +49,7 @@ export default function ProgressSection({ documentId, onBack }) {
     const checkInitialState = async () => {
       try {
         const token = localStorage.getItem('insightstream_token');
-        const res = await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+        const res = await fetch(`${API_URL}/api/documents/${documentId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -134,7 +135,7 @@ export default function ProgressSection({ documentId, onBack }) {
     hasFetchedRef.current = true;
     try {
       const token = localStorage.getItem('insightstream_token');
-      const res = await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+      const res = await fetch(`${API_URL}/api/documents/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
