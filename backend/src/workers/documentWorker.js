@@ -1,4 +1,5 @@
 import { Worker } from "bullmq";
+import express from "express";
 import connectDb from "../config/db.js";
 import Document from "../models/Document.js";
 import IORedis from "ioredis";
@@ -9,6 +10,14 @@ dotenv.config();
 
 // 1. Initialize Database Connection
 connectDb();
+
+const healthApp = express();
+healthApp.get("/", (req, res) => res.send("Worker is alive"));
+
+const HEALTH_PORT = process.env.PORT || 3001;
+healthApp.listen(HEALTH_PORT, () => {
+  console.log(`[⚙️ Worker] HTTP health-check running on port ${HEALTH_PORT}`);
+});
 
 // 2. Initialize Groq AI (via OpenAI SDK)
 const groq = new OpenAI({
