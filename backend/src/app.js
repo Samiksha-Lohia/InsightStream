@@ -6,7 +6,7 @@ import cors from 'cors';
 const app=express();
 
 app.use(cors({
-  origin: ["https://your-frontend-domain.vercel.app"],
+  origin: ["https://insight-stream-green.vercel.app/"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true 
 }));
