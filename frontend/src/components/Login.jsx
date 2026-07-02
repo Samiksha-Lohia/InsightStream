@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
 import { Mail, Lock, LogIn, Sparkles, FileText } from 'lucide-react';
+import Logo from './landing/Logo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -48,8 +49,8 @@ export default function Login() {
 
         {/* Header/Branding */}
         <div className="text-center space-y-2 relative z-10">
-          <div className="inline-flex p-3 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary mb-2">
-            <FileText className="w-8 h-8 neon-text-glow animate-pulse" />
+          <div className="inline-flex p-1.5 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary mb-2 items-center justify-center">
+            <Logo className="w-10 h-10" />
           </div>
           <h2 className="text-3xl font-black text-txt-primary tracking-tight">
             Insight<span className="text-brand-secondary font-extrabold">Stream</span>

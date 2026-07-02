@@ -9,6 +9,15 @@
   --color-txt-primary: var(--text-primary);
   --color-txt-secondary: var(--text-secondary);
   --color-glow: var(--glow-color);
+  
+  --color-lp-bg: #0a0b10;
+  --color-lp-primary: #a855f7;
+  --color-lp-secondary: #f3f4f6;
+  --color-lp-hover: #c084fc;
+  --color-lp-muted: #9ca3af;
+  --color-lp-border: rgba(255, 255, 255, 0.08);
+  --color-lp-card: rgba(17, 18, 25, 0.75);
+  --color-lp-glow: rgba(168, 85, 247, 0.15);
 }
 
 :root {
@@ -26,6 +35,8 @@
   --text-secondary: #9ca3af;
   --glow-color: rgba(168, 85, 247, 0.35);
   --grid-color: rgba(255, 255, 255, 0.015);
+  --logo-grad-start: #a855f7;
+  --logo-grad-end: #6366f1;
 
   /* Force override Tailwind's compiled variables */
   --color-brand-primary: #a855f7;
@@ -48,6 +59,8 @@
   --text-secondary: #475569;
   --glow-color: rgba(79, 70, 229, 0.15);
   --grid-color: rgba(0, 0, 0, 0.015);
+  --logo-grad-start: #4f46e5;
+  --logo-grad-end: #06b6d4;
 
   /* Force override Tailwind's compiled variables */
   --color-brand-primary: #4f46e5;
@@ -70,6 +83,8 @@
   --text-secondary: #ff007f; /* Pink */
   --glow-color: rgba(0, 240, 255, 0.45);
   --grid-color: rgba(0, 240, 255, 0.03);
+  --logo-grad-start: #39ff14; /* Neon Green */
+  --logo-grad-end: #00f0ff; /* Neon Blue */
 
   /* Force override Tailwind's compiled variables */
   --color-brand-primary: #ff007f;
@@ -108,12 +123,8 @@ body {
   background: var(--brand-primary);
 }
 
-/* Premium Background Tech Grid */
+/* Premium Background Tech Grid (grid lines removed) */
 .tech-grid {
-  background-image: 
-    linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
 
 /* Shimmer Animation for skeletons */
@@ -179,3 +190,46 @@ body {
 .text-brand-secondary {
   color: var(--brand-secondary) !important;
 }
+
+/* Landing Page Specific Rules */
+.landing-theme {
+  --bg-main: #0a0b10;
+  --bg-card: rgba(17, 18, 25, 0.75);
+  --border-main: rgba(255, 255, 255, 0.08);
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --glow-color: rgba(168, 85, 247, 0.35);
+  --logo-grad-start: #a855f7;
+  --logo-grad-end: #6366f1;
+}
+
+.landing-grid {
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Glassmorphism panel for landing */
+.lp-glass-panel {
+  background: rgba(17, 18, 25, 0.75);
+  backdrop-filter: blur(12px) saturate(110%);
+  -webkit-backdrop-filter: blur(12px) saturate(110%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+

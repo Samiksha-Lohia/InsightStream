@@ -4,6 +4,7 @@ import gsap from 'gsap';
 import { useSocket } from '../context/SocketProvider';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastProvider';
+import { useAuth } from '../context/AuthProvider';
 import SkeletonView from './SkeletonView';
 import ResultCard from './ResultCard';
 import { Terminal, Cpu, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -26,6 +27,60 @@ const technicalVerbs = [
 export default function ProgressSection({ documentId, onBack }) {
   const { activeJobs, removeJob } = useSocket();
   const { addToast } = useToast();
+  const { user } = useAuth();
+
+  // Programmatic audio synthesizer chime
+  const playChime = (type = 'success') => {
+    if (localStorage.getItem('setting-audio-alerts') !== 'true') return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      if (type === 'success') {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+        
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1174.66, ctx.currentTime); // D6
+        
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.6);
+        osc2.stop(ctx.currentTime + 0.6);
+      } else {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
+        osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.25); // A2
+        
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      }
+    } catch (e) {
+      console.warn("Audio Context playback blocked or unsupported:", e);
+    }
+  };
   
   const [localProgress, setLocalProgress] = useState(0);
   const [currentVerbIdx, setCurrentVerbIdx] = useState(0);
@@ -125,9 +180,12 @@ export default function ProgressSection({ documentId, onBack }) {
 
     if (backendStatus === 'Failed') {
       setError('The background document worker failed to process the request.');
-      addToast('Document processing failed', 'error');
+      playChime('error');
+      if (localStorage.getItem('setting-browser-alerts') !== 'false') {
+        addToast('Document processing failed', 'error');
+      }
     }
-  }, [backendStatus, addToast]);
+  }, [backendStatus]);
 
   // Fetch document insights when completed
   const fetchDocumentData = async () => {
@@ -144,7 +202,17 @@ export default function ProgressSection({ documentId, onBack }) {
       if (data.success && data.document) {
         setDocumentData(data.document);
         setInsights(data.document.insights);
-        addToast('Document successfully analyzed!', 'success');
+        
+        // Trigger alerts depending on user preferences settings
+        playChime('success');
+        
+        if (localStorage.getItem('setting-browser-alerts') !== 'false') {
+          addToast('Document successfully analyzed!', 'success');
+        }
+        
+        if (localStorage.getItem('setting-email-alerts') === 'true') {
+          addToast(`[Email Alert] Digest report sent to ${user?.email || 'user@example.com'}`, 'info');
+        }
       } else {
         hasFetchedRef.current = false;
         throw new Error(data.message || 'Failed to fetch insights');

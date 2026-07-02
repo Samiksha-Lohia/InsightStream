@@ -13,6 +13,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { SocketProvider, useSocket } from './context/SocketProvider';
 import { ToastProvider, useToast } from './context/ToastProvider';
 import { AuthProvider, useAuth } from './context/AuthProvider';
+import LandingPage from './components/landing/LandingPage';
 
 // Route guard for authenticated users
 function ProtectedRoute({ children }) {
@@ -67,26 +68,46 @@ function AnimatedApp({ theme, setTheme }) {
   const navigate = useNavigate();
   const { trackJob } = useSocket();
   const { addToast } = useToast();
-  const { token } = useAuth();
+  const { token, user, loading } = useAuth();
 
   const [activeDocId, setActiveDocId] = useState(null);
 
+  const isLandingPage = !loading && !user && location.pathname === '/';
   // Sync visual theme with root document body and html elements
   useEffect(() => {
+    if (isLandingPage) return;
+
+    // Force "dark" purple brand theme if user is not authenticated (login/register)
+    const activeTheme = user ? theme : 'dark';
+
     const body = document.body;
     body.className = 'tech-grid min-h-screen relative';
-    body.classList.add(`theme-${theme}`);
+    body.classList.add(`theme-${activeTheme}`);
     
     const html = document.documentElement;
-    html.className = `theme-${theme}`;
+    html.className = `theme-${activeTheme}`;
 
-    localStorage.setItem('theme-preference', theme);
-  }, [theme]);
+    if (user) {
+      localStorage.setItem('theme-preference', theme);
+    }
+  }, [theme, isLandingPage, user]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0b10]">
+        <div className="relative font-mono">
+          <div className="w-12 h-12 rounded-full border-2 border-[#a855f7]/20 border-t-[#a855f7] animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[#a855f7]">IS</div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle uploading document text content
   const handleUploadSubmit = async (content) => {
+    const showToasts = localStorage.getItem('setting-browser-alerts') !== 'false';
     try {
-      addToast('Uploading document to analysis queue...', 'info');
+      if (showToasts) addToast('Uploading document to analysis queue...', 'info');
       
       const retentionSetting = localStorage.getItem('setting-retention') || 'Indefinite';
       const currentToken = token || localStorage.getItem('insightstream_token');
@@ -111,9 +132,9 @@ function AnimatedApp({ theme, setTheme }) {
       // Track active document inside socket connection and view processing
       trackJob(data.documentId);
       setActiveDocId(data.documentId);
-      addToast('Job successfully registered in Redis queue', 'success');
+      if (showToasts) addToast('Job successfully registered in Redis queue', 'success');
     } catch (err) {
-      addToast(`Upload failed: ${err.message}`, 'error');
+      if (showToasts) addToast(`Upload failed: ${err.message}`, 'error');
     }
   };
 
@@ -122,6 +143,10 @@ function AnimatedApp({ theme, setTheme }) {
     setActiveDocId(docId);
     navigate('/');
   };
+
+  if (isLandingPage) {
+    return <LandingPage theme={theme} setTheme={setTheme} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen text-txt-primary">

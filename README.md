@@ -74,6 +74,24 @@ InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern
    * The database runs a background task once every 60 seconds that checks the TTL index on the `expiresAt` field.
    * Documents whose `expiresAt` timestamps are in the past are automatically deleted from the database. Indefinite logs have an `expiresAt` value of `null` and are ignored by the index, persisting indefinitely.
 
+### 🎨 Premium Visual Branding & Notifications Engine
+
+1. **Animated Landing Page (Route `/` Isolation):**
+   * Unauthenticated guests landing on `/` are routed directly to the custom `<LandingPage />` container, bypassing the main dashboard view. 
+   * A startup auth loader blocks redirects until local credentials resolve, eliminating routing flashes.
+   * High-fidelity page layouts integrate Scroll-triggered GSAP sequences for content reveals and Framer Motion spring actions for UI toggles/FAQ accordions.
+
+2. **Custom Vector Logo with Active Color Mapping:**
+   * Features a custom geometric logo ([Logo.jsx](file:///c:/Users/Lenovo/Desktop/Insight%20Stream/frontend/src/components/landing/Logo.jsx)) blending twin high-speed data stream loops wrapping a central insight star.
+   * Leverages theme custom properties (`--logo-grad-start` and `--logo-grad-end`) declared in [index.css](file:///c:/Users/Lenovo/Desktop/Insight%20Stream/frontend/src/index.css#L38-L82). The logo dynamically shifts colors based on your active theme (Purple/Indigo in dark mode, Indigo/Cyan in light mode, Neon Green/Blue in cyberpunk mode).
+   * Static overrides on `.landing-theme` force the logo to remain in dark purple/indigo on the public landing page to keep it consistent.
+
+3. **Active Settings Alert Toggles:**
+   * Toggles inside Settings (email alerts, browser toasts, audio chime) are bound to the document parsing lifecycle:
+     * **Email Alerts**: Synthesizes a dashboard dispatch note (`[Email Alert] Digest report sent to user@example.com`) upon process completion.
+     * **Browser Toasts**: Hides or shows document worker completion toasts depending on settings.
+     * **Auditory Alerts**: Connects a custom Web Audio API oscillator chime playing pleasant bell notes (D5 to A5) on success or low alerts on failure.
+
 ---
 
 ## 🛠️ Technology Stack

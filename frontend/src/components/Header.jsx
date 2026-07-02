@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
 import { Sparkles, History, FileText, Lock, X } from 'lucide-react';
+import Logo from './landing/Logo';
 import ProfileDropdown from './ProfileDropdown';
 
 export default function Header({ theme, onThemeChange }) {
@@ -91,8 +92,8 @@ export default function Header({ theme, onThemeChange }) {
       <nav className="sticky top-0 z-40 w-full glass-panel border-b border-border-main py-4 px-6 md:px-12 flex justify-between items-center transition-all">
         {/* Brand Logo Link */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="p-2 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary group-hover:scale-105 transition-transform duration-300">
-            <FileText className="w-6 h-6 neon-text-glow" />
+          <div className="p-1 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary group-hover:scale-105 transition-transform duration-300 flex items-center justify-center">
+            <Logo className="w-8 h-8" />
           </div>
           <div>
             <span className="text-xl font-bold tracking-tight text-txt-primary group-hover:text-brand-primary transition-colors">

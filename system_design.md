@@ -211,3 +211,38 @@ To respect user data privacy and optimize server storage, the system implements 
      DocumentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
      ```
    - MongoDB background threads run approximately every 60 seconds to clean up expired documents, guaranteeing eventual consistency of deletions.
+
+---
+
+## 🎨 Premium Visual Branding & Theme System
+
+To create a premium enterprise experience, the user interface integrates a custom branding identity, isolated routing, and dynamic theme overrides:
+
+### 1. Isolated Landing Page Entrypoint
+* **Unauthenticated Routing**: Directs users visiting the root path `/` to an isolated `<LandingPage />` container if they are unauthenticated.
+* **Race Condition Protection**: A top-level boot loader in `App.jsx` delays render calculations until authentication credentials (stored locally) have been fully parsed. This prevents redirects or flashing headers on startup.
+* **Premium Animations**: Integrates a custom GSAP timeline for text reveals on boot, scroll triggers, and Framer Motion spring curves for local UI widgets, card highlights, and FAQ accordions.
+
+### 2. Custom Geometric Vector Logo
+* **Visual Concept**: The logo features twin overlapping high-speed streams (representing data pipelines and continuous queue throughput) orbiting a central geometric sparkle core (representing AI value extraction and insights).
+* **Theme-Driven Gradients**: The SVG gradients are bound to the CSS variables `--logo-grad-start` and `--logo-grad-end`. This allows the logo color palette to transform dynamically in real-time when the active theme is changed (Purple/Indigo in Dark mode, Indigo/Cyan in Light mode, Neon Green/Blue in Cyberpunk).
+
+### 3. Public Route Theme Enforcement
+* **Landing Page Locks**: The `.landing-theme` class in `index.css` overrides the gradient variables to guarantee that the logo is always rendered in its signature purple/indigo style on the landing page, regardless of past user sessions.
+* **Public Page Locking**: Forces the default `dark` theme on all unauthenticated routes (including `/login` and `/register`) for design consistency. The custom user-selected preferences are loaded only after authentication succeeds.
+
+---
+
+## 🔔 Dynamic Notification Settings Engine
+
+Wired up and activated the previously static System Preferences toggles to interactively affect client behavior during the document analysis lifecycle:
+
+1. **Email Alerts (Simulation)**:
+   * When enabled (`setting-email-alerts` is `true`), document analysis completion triggers a secondary mock alert informatively logs: `[Email Alert] Digest report sent to user@example.com`.
+
+2. **Browser Toast Notifications**:
+   * Standard and progress toasts are bound to the `setting-browser-alerts` value. When disabled, all background worker completion and upload registration toasts are suppressed, allowing for silent background runs.
+
+3. **Auditory Alerts (Web Audio Synthesizer)**:
+   * Playback is bound to the `setting-audio-alerts` setting.
+   * Utilizes a zero-dependency programmatic helper (`playChime`) that connects a browser Web Audio `AudioContext` to dual sine/triangle oscillators. It generates a custom double-note chime (D5 to A5) on success, and a warning sawtooth frequency on failure.
