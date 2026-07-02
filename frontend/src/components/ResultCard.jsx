@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { generateTitle } from '../utils/titleGenerator';
 
 export default function ResultCard({ document }) {
-  const { _id, content, insights, createdAt } = document;
+  const { _id, content, insights, createdAt, retention = 'Indefinite' } = document;
 
   // Refactored dynamic section parser
   const parseMarkdownSections = (rawText) => {
@@ -138,7 +138,7 @@ export default function ResultCard({ document }) {
             Data Retention
           </div>
           <p className="text-sm font-bold text-brand-primary mt-2">
-            Indefinite
+            {retention}
           </p>
         </div>
       </div>

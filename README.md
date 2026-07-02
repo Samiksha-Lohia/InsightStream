@@ -51,14 +51,15 @@ Detailed sequence diagrams, database schemas, and state machine models are docum
 | **BullMQ (Redis-backed Queue) over In-Memory Queues** | **Resilience & Process Decoupling:** Volatile jobs survive server crashes. Moving intensive AI processing to background worker processes prevents event-loop blocking on the Express server. Enables horizontal scaling (multiple worker nodes dequeuing from the same Redis instance). | **In-Memory Arrays / Async Libraries:** Jobs are stored in volatile RAM; any process restart or deployment terminates active workloads. Heavy execution blocks the main Node.js process, hurting API performance. Cannot scale workers independently. |
 | **WebSockets (Socket.io) over HTTP Polling** | **Real-Time Push & Low Overhead:** Provides instantaneous server-to-client progress updates (10% -> 20% -> 70% -> 100%) over a single, persistent TCP connection. Drastically reduces network traffic and minimizes latency. | **HTTP Short/Long Polling:** Floods the server with redundant requests, wastefully consuming database read capacity, degrading application performance, and exhausting socket connections. |
 | **Redis Cache over Local In-Memory Cache (e.g., Node-Cache)** | **Shared State in Distributed Environments:** Synchronizes cached results across multiple API nodes. Allows background workers running in isolated processes to invalidate keys (`client.del(id)`) upon completion, ensuring immediate data consistency. | **Local Process Memory:** Isolated to a single node. Background workers cannot invalidate cache entries on API servers without complex inter-process messaging, leading to inconsistent or stale reads. |
+| **MongoDB Native TTL Indexing over Manual Cron Cleanups** | **Declarative & Zero Maintenance:** Offloads scheduling and execution to MongoDB's background threads. Automatically purges expired document logs without custom worker code or execution overhead. Indefinite logs are supported simply by writing `null` to the expiration field. | **Custom Node Cron/Worker Tasks:** Demands dedicated process resources, complicates horizontal deployment configurations (e.g. running redundant crons on multiple instances), and scales poorly without custom sharding/batching logic. |
 
-### Data Flow & Caching Strategy
+### Data Flow, Caching & Data Retention
 
-InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern** with strict tenant isolation:
+InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern** with strict tenant isolation and automated data retention policies:
 
-1. **Write Path (Ingestion):**
-   * The client dispatches a document payload.
-   * The API server writes the document record to MongoDB with a `Pending` status and dispatches a job containing `{ documentId }` to BullMQ.
+1. **Write Path (Ingestion & Retention Setup):**
+   * The client dispatches a document payload alongside their preferred retention setting (e.g., `"24 Hours"`).
+   * The API server computes the target expiration timestamp (`expiresAt`), creates the record in MongoDB with `Pending` status, and dispatches a job to BullMQ.
    * The system immediately returns an asynchronous acknowledgment (`202 Accepted`) containing the `documentId`. No data is written to the cache during ingestion, keeping writes extremely fast.
 2. **Worker Path (Async Processing & Cache Invalidation):**
    * The background worker fetches the job, updates the MongoDB document status to `Processing`, calls the Groq AI API for insights, and writes the completed insights back to MongoDB (`Completed`).
@@ -69,6 +70,9 @@ InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern
    * **Cache Miss:** The server queries MongoDB using the compound filter `{ _id: id, user: req.user._id }`. If the document exists and has reached a terminal status (`Completed` or `Failed`), it is serialized, written to Redis with a **1-hour TTL (Time-To-Live)**, and returned to the client.
    * **Why Cache-Aside over Write-Through?**
      A Write-Through strategy updates the cache synchronously during database writes. Because documents begin in a `Pending` state and undergo time-consuming AI generation, write-through caching would clutter Redis with temporary data that require immediate invalidation once completed. Cache-Aside keeps the cache clean, ensuring only terminal, requested documents occupy RAM.
+4. **Retention Cleanup Path (MongoDB TTL Index):**
+   * The database runs a background task once every 60 seconds that checks the TTL index on the `expiresAt` field.
+   * Documents whose `expiresAt` timestamps are in the past are automatically deleted from the database. Indefinite logs have an `expiresAt` value of `null` and are ignored by the index, persisting indefinitely.
 
 ---
 

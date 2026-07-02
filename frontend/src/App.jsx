@@ -88,6 +88,7 @@ function AnimatedApp({ theme, setTheme }) {
     try {
       addToast('Uploading document to analysis queue...', 'info');
       
+      const retentionSetting = localStorage.getItem('setting-retention') || 'Indefinite';
       const currentToken = token || localStorage.getItem('insightstream_token');
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
@@ -95,7 +96,10 @@ function AnimatedApp({ theme, setTheme }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ 
+          content,
+          retention: retentionSetting
+        }),
       });
 
       const data = await response.json();

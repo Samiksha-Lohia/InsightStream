@@ -129,12 +129,22 @@ const DocumentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    retention: {
+      type: String,
+      enum: ["24 Hours", "7 Days", "30 Days", "Indefinite"],
+      default: "Indefinite"
+    },
+    expiresAt: {
+      type: Date
     }
   },
   {
     timestamps: true, // Creates createdAt and updatedAt fields
   }
 );
+
+DocumentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ```
 
 ---
@@ -175,3 +185,29 @@ To ensure secure, low-latency lookups, the system implements a secure **Cache-As
    - The server queries MongoDB: `Document.findOne({ _id: id, user: req.user._id })`.
    - If the document is found and has reached a terminal state (`Completed` or `Failed`), it is serialized and cached in Redis with a **1-hour Time-To-Live (TTL)**.
    - The document is returned to the client.
+
+---
+
+## 🧹 Data Retention & Expiry Policy
+
+To respect user data privacy and optimize server storage, the system implements a configurable data retention policy:
+
+1. **Policy Configuration**:
+   - The user selects a retention period in the UI settings (stored in local storage as `setting-retention`).
+   - Options include: `24 Hours`, `7 Days`, `30 Days`, and `Indefinite`.
+
+2. **Ingestion & Expiration Calculation**:
+   - During `POST /api/upload`, the selected policy is sent to the backend.
+   - The server calculates an `expiresAt` date:
+     - `24 Hours`: `now + 24 hours`
+     - `7 Days`: `now + 7 days`
+     - `30 Days`: `now + 30 days`
+     - `Indefinite`: `null` (never expires)
+   - These values are stored in the MongoDB Document record.
+
+3. **Automatic Cleanup (MongoDB TTL)**:
+   - MongoDB native TTL index deletes documents when the current time passes the date stored in `expiresAt`:
+     ```javascript
+     DocumentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+     ```
+   - MongoDB background threads run approximately every 60 seconds to clean up expired documents, guaranteeing eventual consistency of deletions.

@@ -5,7 +5,7 @@ import { documentQueue, connection as redisClient } from "../config/queue.js";
 export const uploadDocument = async (req, res) => {
   try {
     // 1. Assume file info is already processed (Multer, etc.)
-    const { content } = req.body;
+    const { content, retention = "Indefinite" } = req.body;
 
     if (!content) {
       return res.status(400).json({
@@ -14,11 +14,22 @@ export const uploadDocument = async (req, res) => {
       });
     }
 
+    let expiresAt = null;
+    if (retention === "24 Hours") {
+      expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    } else if (retention === "7 Days") {
+      expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    } else if (retention === "30 Days") {
+      expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
     // 2. Save document in MongoDB with association to the authenticated user
     const document = await Document.create({
       content,
       status: "Pending", // important for tracking async work
       user: req.user._id,
+      retention,
+      expiresAt,
     });
 
     // 3. Push job to Redis queue
