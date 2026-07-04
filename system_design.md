@@ -214,35 +214,32 @@ To respect user data privacy and optimize server storage, the system implements 
 
 ---
 
-## 🎨 Premium Visual Branding & Theme System
+## 🎨 Premium Unified Workspace & Theme System
 
-To create a premium enterprise experience, the user interface integrates a custom branding identity, isolated routing, and dynamic theme overrides:
+To create a premium enterprise experience, the user interface integrates a clean layout, protected routing, and client-side interactive tools:
 
-### 1. Isolated Landing Page Entrypoint
-* **Unauthenticated Routing**: Directs users visiting the root path `/` to an isolated `<LandingPage />` container if they are unauthenticated.
-* **Race Condition Protection**: A top-level boot loader in `App.jsx` delays render calculations until authentication credentials (stored locally) have been fully parsed. This prevents redirects or flashing headers on startup.
-* **Premium Animations**: Integrates a custom GSAP timeline for text reveals on boot, scroll triggers, and Framer Motion spring curves for local UI widgets, card highlights, and FAQ accordions.
+### 1. Protected Workspace Routing
+* **Protected Routes**: Unauthenticated users visiting the root path `/` or other protected routes are immediately redirected to `/login` via the `ProtectedRoute` wrapper component. The public-facing landing page has been fully removed.
+* **Boot Loader Hook**: A startup auth check blocks routing redirects until local storage credentials resolve, eliminating layout flashes.
 
-### 2. Custom Geometric Vector Logo
-* **Visual Concept**: The logo features twin overlapping high-speed streams (representing data pipelines and continuous queue throughput) orbiting a central geometric sparkle core (representing AI value extraction and insights).
-* **Theme-Driven Gradients**: The SVG gradients are bound to the CSS variables `--logo-grad-start` and `--logo-grad-end`. This allows the logo color palette to transform dynamically in real-time when the active theme is changed (Purple/Indigo in Dark mode, Indigo/Cyan in Light mode, Neon Green/Blue in Cyberpunk).
-
-### 3. Public Route Theme Enforcement
-* **Landing Page Locks**: The `.landing-theme` class in `index.css` overrides the gradient variables to guarantee that the logo is always rendered in its signature purple/indigo style on the landing page, regardless of past user sessions.
-* **Public Page Locking**: Forces the default `dark` theme on all unauthenticated routes (including `/login` and `/register`) for design consistency. The custom user-selected preferences are loaded only after authentication succeeds.
+### 2. Interactive Workspace Tools
+* **Text Selection Highlights**: Users can mark critical sections in the parsed insights document. Selection ranges are parsed, wrapped in color-coded `<mark>` tags, and serialized persistently to `localStorage` under `insightstream-highlights-${activeDocId}`.
+* **Workspace Notes System**: A collapsible notes drawer on the right side of the workspace allows users to write, view, and delete local timestamped annotations. Notes are persisted in `localStorage` under `insightstream-notes-${activeDocId}`.
+* **Keyphrase Word Search**: A text query input filters the insights in real-time, wrapping matches in yellow highlighting (`<mark class="search-match">`).
+* **Recent Session Chips**: The workspace keeps track of recently parsed documents in `localStorage` (`insightstream-session-chips`), displaying them as clickable pills to switch between documents instantly.
 
 ---
 
 ## 🔔 Dynamic Notification Settings Engine
 
-Wired up and activated the previously static System Preferences toggles to interactively affect client behavior during the document analysis lifecycle:
+Wired up settings properties to affect client behavior during the document upload and BullMQ progress tracking cycle:
 
 1. **Email Alerts (Simulation)**:
-   * When enabled (`setting-email-alerts` is `true`), document analysis completion triggers a secondary mock alert informatively logs: `[Email Alert] Digest report sent to user@example.com`.
+   * Analysis completion triggers a secondary mock alert logging: `[Email Alert] Digest report sent to user@example.com` if `setting-email-alerts` is set to `true` in `localStorage`.
 
 2. **Browser Toast Notifications**:
-   * Standard and progress toasts are bound to the `setting-browser-alerts` value. When disabled, all background worker completion and upload registration toasts are suppressed, allowing for silent background runs.
+   * Standard and progress toasts check `setting-browser-alerts`. When disabled, all background worker completion and queue registration toasts are suppressed for a silent run.
 
 3. **Auditory Alerts (Web Audio Synthesizer)**:
    * Playback is bound to the `setting-audio-alerts` setting.
-   * Utilizes a zero-dependency programmatic helper (`playChime`) that connects a browser Web Audio `AudioContext` to dual sine/triangle oscillators. It generates a custom double-note chime (D5 to A5) on success, and a warning sawtooth frequency on failure.
+   * Utilizes a zero-dependency programmatic synthesizer (`playChime`) that connects a browser Web Audio `AudioContext` to dual sine/triangle oscillators. It generates a custom double-note chime (D5 to A5) on success, and a warning drone on failure.

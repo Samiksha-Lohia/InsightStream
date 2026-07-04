@@ -74,23 +74,28 @@ InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern
    * The database runs a background task once every 60 seconds that checks the TTL index on the `expiresAt` field.
    * Documents whose `expiresAt` timestamps are in the past are automatically deleted from the database. Indefinite logs have an `expiresAt` value of `null` and are ignored by the index, persisting indefinitely.
 
-### 🎨 Premium Visual Branding & Notifications Engine
+### 🎨 Premium Unified Workspace & Interactive Features
 
-1. **Animated Landing Page (Route `/` Isolation):**
-   * Unauthenticated guests landing on `/` are routed directly to the custom `<LandingPage />` container, bypassing the main dashboard view. 
-   * A startup auth loader blocks redirects until local credentials resolve, eliminating routing flashes.
-   * High-fidelity page layouts integrate Scroll-triggered GSAP sequences for content reveals and Framer Motion spring actions for UI toggles/FAQ accordions.
+1. **Unified Workspace Panel (Route `/`):**
+   * Authenticated users are directed to a clean, side-by-side dashboard workspace. Unauthenticated guests are automatically redirected to `/login` via protected route guards.
+   * The input section supports text area pasting or custom drag-and-drop file ingestion, displaying dynamic status messages that cycle through actual worker events.
 
-2. **Custom Vector Logo with Active Color Mapping:**
-   * Features a custom geometric logo ([Logo.jsx](file:///c:/Users/Lenovo/Desktop/Insight%20Stream/frontend/src/components/landing/Logo.jsx)) blending twin high-speed data stream loops wrapping a central insight star.
-   * Leverages theme custom properties (`--logo-grad-start` and `--logo-grad-end`) declared in [index.css](file:///c:/Users/Lenovo/Desktop/Insight%20Stream/frontend/src/index.css#L38-L82). The logo dynamically shifts colors based on your active theme (Purple/Indigo in dark mode, Indigo/Cyan in light mode, Neon Green/Blue in cyberpunk mode).
-   * Static overrides on `.landing-theme` force the logo to remain in dark purple/indigo on the public landing page to keep it consistent.
+2. **Text Highlighting & Custom Color Markings:**
+   * Users can highlight text inside the parsed Markdown insights view using a custom-developed text selection bubble toolbar.
+   * Highlights are wrapped in color-coded `<mark>` tags and serialized persistently to `localStorage` under `insightstream-highlights-${activeDocId}`.
 
-3. **Active Settings Alert Toggles:**
-   * Toggles inside Settings (email alerts, browser toasts, audio chime) are bound to the document parsing lifecycle:
-     * **Email Alerts**: Synthesizes a dashboard dispatch note (`[Email Alert] Digest report sent to user@example.com`) upon process completion.
-     * **Browser Toasts**: Hides or shows document worker completion toasts depending on settings.
-     * **Auditory Alerts**: Connects a custom Web Audio API oscillator chime playing pleasant bell notes (D5 to A5) on success or low alerts on failure.
+3. **Contextual Document Notes & Annotations:**
+   * Integrated a collapsible annotations panel directly into the workspace interface.
+   * Allows writing, reading, and deleting local, timestamped note entries mapped to the active document and stored in `localStorage` under `insightstream-notes-${activeDocId}`.
+
+4. **Dynamic Keyphrase Search & Navigation:**
+   * A real-time keyword input box highlights all exact matches in yellow across the insights document, enabling prompt data queries and lookup.
+   * Interactive recent session chips are stored in `localStorage` (`insightstream-session-chips`) for one-click switching between recently parsed document analyses.
+
+5. **Programmatic Auditory Alerts:**
+   * Synthesizes audio feedback using a zero-dependency Web Audio API oscillator context.
+   * When configured in user settings, it plays an upbeat double-note bell chime (D5 to A5) on analysis completion or a warning drone on processing errors.
+
 
 ---
 
@@ -137,15 +142,13 @@ Insight Stream/
 └── frontend/
     ├── src/
     │   ├── assets/              # Static assets
-    │   ├── components/          # UI components (Dashboard, ErrorBoundary, Header, UploadZone, etc.)
+    │   ├── components/          # UI components (Dashboard, ErrorBoundary, Header, Workspace, Settings, etc.)
     │   ├── context/             # React Context (AuthProvider, SocketProvider, ToastProvider)
     │   ├── utils/               # Helper utilities (titleGenerator)
     │   ├── App.css              # Main App styling
     │   ├── App.jsx              # Application Layout & Routes
-    │   ├── ProgressTracker.jsx  # Progress Tracker logic/components
-    │   ├── UploadInterface.jsx  # Upload Interface layout
     │   ├── config.js            # Centralized API url config
-    │   ├── index.css            # Custom CSS system and tailwind overrides
+    │   ├── index.css            # Custom CSS system and styling variables
     │   └── main.jsx             # React client entrypoint
     ├── .env.example             # Template for local frontend configurations
     ├── package.json
