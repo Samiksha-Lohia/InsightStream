@@ -1,12 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
-import { Mail, Lock, LogIn, Sparkles, FileText } from 'lucide-react';
-import Logo from './landing/Logo';
 
-export default function Login() {
+export default function Login({ theme, onThemeChange }) {
   const { login } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -14,11 +11,18 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailInvalid, setEmailInvalid] = useState(false);
+  const [passwordInvalid, setPasswordInvalid] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      addToast('Please enter both email and password', 'error');
+    const emailOk = /^\S+@\S+\.\S+$/.test(email);
+    
+    setEmailInvalid(!emailOk);
+    setPasswordInvalid(password.length < 6);
+
+    if (!emailOk || password.length < 6) {
+      addToast('Please enter a valid email and a password of at least 6 characters', 'error');
       return;
     }
 
@@ -35,99 +39,123 @@ export default function Login() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -30, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className="w-full max-w-md"
-    >
-      <div className="glass-panel p-8 rounded-3xl border border-border-main shadow-2xl space-y-6 relative overflow-hidden">
-        {/* Top visual glow */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-brand-primary/10 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-brand-secondary/10 blur-3xl" />
-
-        {/* Header/Branding */}
-        <div className="text-center space-y-2 relative z-10">
-          <div className="inline-flex p-1.5 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary mb-2 items-center justify-center">
-            <Logo className="w-10 h-10" />
-          </div>
-          <h2 className="text-3xl font-black text-txt-primary tracking-tight">
-            Insight<span className="text-brand-secondary font-extrabold">Stream</span>
-          </h2>
-          <p className="text-sm text-txt-secondary">
-            Sign in to access your AI analysis pipeline
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-          {/* Email field */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-txt-secondary uppercase tracking-wider">
-              Email Address
-            </label>
-            <div className="relative flex items-center">
-              <Mail className="absolute left-4 w-5 h-5 text-txt-secondary" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@domain.com"
-                className="w-full pl-12 pr-4 py-3 bg-black/25 rounded-xl border border-border-main text-sm text-txt-primary focus:outline-none focus:border-brand-primary/75 focus:ring-1 focus:ring-brand-primary/30 transition-all font-medium placeholder-txt-secondary/50"
-              />
-            </div>
-          </div>
-
-          {/* Password field */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-txt-secondary uppercase tracking-wider">
-                Password
-              </label>
-            </div>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-4 w-5 h-5 text-txt-secondary" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-12 pr-4 py-3 bg-black/25 rounded-xl border border-border-main text-sm text-txt-primary focus:outline-none focus:border-brand-primary/75 focus:ring-1 focus:ring-brand-primary/30 transition-all font-medium placeholder-txt-secondary/50"
-              />
-            </div>
-          </div>
-
-          {/* Submit Button */}
+    <div id="screen-auth" className="w-full min-h-screen flex flex-col">
+      {/* Auth Topbar */}
+      <div className="auth-topbar">
+        <span className="brand">
+          <span className="brand-mark">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 15c3-6 6 6 9 0s6-6 9 0" stroke="#FFF4EC" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </svg>
+          </span>
+          InsightStream
+        </span>
+        <div className="segmented" style={{ width: '120px' }}>
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-sm shadow-lg hover:shadow-brand-primary/20 transition-all duration-300 relative cursor-pointer active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed group border border-white/10"
+            type="button"
+            className={theme === 'light' ? 'active' : ''}
+            onClick={() => onThemeChange('light')}
+            title="Light Theme"
           >
-            {loading ? (
-              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <LogIn className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
-                Sign In
-              </>
-            )}
+            <svg className="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+            </svg>
           </button>
-        </form>
-
-        {/* Footer info */}
-        <div className="text-center text-xs text-txt-secondary relative z-10 pt-2 border-t border-border-main/40">
-          Don't have an account?{' '}
-          <Link
-            to="/register"
-            className="text-brand-secondary hover:text-brand-secondary/80 font-bold transition-colors underline decoration-brand-secondary/30 hover:decoration-brand-secondary"
+          <button
+            type="button"
+            className={theme === 'dark' || theme === 'cyberpunk' ? 'active' : ''}
+            onClick={() => onThemeChange('dark')}
+            title="Dark Theme"
           >
-            Create account
-          </Link>
+            <svg className="icon" viewBox="0 0 24 24">
+              <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>
+            </svg>
+          </button>
         </div>
       </div>
-    </motion.div>
+
+      {/* Auth Body */}
+      <div className="auth-body">
+        {/* Left Side: Pitch */}
+        <div className="auth-pitch">
+          <span className="eyebrow">Document intelligence</span>
+          <h1>Every document has a story. <em>We read between the lines.</em></h1>
+          <p>Upload reports, contracts or research data — InsightStream extracts structure, highlights what matters, and keeps every analysis in one place.</p>
+          <div className="pitch-points">
+            <div>
+              <span className="dot">
+                <svg className="icon" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>
+              </span>
+              Drop in a file, get a structured read in seconds
+            </div>
+            <div>
+              <span className="dot">
+                <svg className="icon" viewBox="0 0 24 24"><path d="M4 6h12M4 12h8M4 18h5"/></svg>
+              </span>
+              Highlight key passages and leave notes as you read
+            </div>
+            <div>
+              <span className="dot">
+                <svg className="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+              </span>
+              Every analysis saved to your dashboard
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Auth Card */}
+        <div className="auth-card">
+          <div className="segmented" style={{ marginBottom: '22px' }}>
+            <button type="button" className="active">Log in</button>
+            <button type="button" onClick={() => navigate('/register')}>Create account</button>
+          </div>
+
+          <form onSubmit={handleSubmit} id="loginForm">
+            <h2>Welcome back</h2>
+            <p className="sub">Log in to see your recent analyses.</p>
+            
+            <div className={`field ${emailInvalid ? 'invalid' : ''}`}>
+              <label htmlFor="loginEmail">Email</label>
+              <input
+                type="email"
+                id="loginEmail"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailInvalid(false);
+                }}
+              />
+              <div className="err">Enter a valid email address.</div>
+            </div>
+
+            <div className={`field ${passwordInvalid ? 'invalid' : ''}`}>
+              <label htmlFor="loginPass">Password</label>
+              <input
+                type="password"
+                id="loginPass"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordInvalid(false);
+                }}
+              />
+              <div className="err">Password must be at least 6 characters.</div>
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+              {loading ? 'Logging in...' : 'Log in'}
+            </button>
+            
+            <div className="demo-hint">Demo mode — any email + a password of 6+ characters will work.</div>
+            <div className="auth-foot">
+              New here? <button type="button" onClick={() => navigate('/register')}>Create an account</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }

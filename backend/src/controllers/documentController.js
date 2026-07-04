@@ -131,3 +131,31 @@ export const getAllDocuments = async (req, res) => {
     });
   }
 };
+
+// DELETE /api/documents/:id
+export const deleteDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = await Document.findOneAndDelete({ _id: id, user: req.user._id });
+    
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found or unauthorized",
+      });
+    }
+
+    // Delete from Redis cache
+    await redisClient.del(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Document deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

@@ -1,202 +1,276 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
-import { Sliders, Key, LogOut, Eye, Bell, ShieldAlert } from 'lucide-react';
 
-export default function ProfileDropdown({ theme, onThemeChange, onClose, onChangePasswordClick }) {
+export default function ProfileDropdown({ theme, onThemeChange, onChangePasswordClick, onClose }) {
   const { user, logout } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
 
-  const [showSettings, setShowSettings] = useState(false);
-
-  // Quick settings states synced with localStorage
-  const [emailAlerts, setEmailAlerts] = useState(() => localStorage.getItem('setting-email-alerts') === 'true');
-  const [browserAlerts, setBrowserAlerts] = useState(() => localStorage.getItem('setting-browser-alerts') !== 'false');
-  const [audioAlerts, setAudioAlerts] = useState(() => localStorage.getItem('setting-audio-alerts') === 'true');
-  const [retention, setRetention] = useState(() => localStorage.getItem('setting-retention') || 'Indefinite');
-
-  const handleToggle = (setting, stateSetter, stateVal) => {
-    const newVal = !stateVal;
-    stateSetter(newVal);
-    localStorage.setItem(`setting-${setting}`, newVal.toString());
-    addToast(`Quick Update: ${setting} is now ${newVal ? 'ENABLED' : 'DISABLED'}`, 'success');
+  const getInitials = () => {
+    if (!user || !user.username) return 'US';
+    return user.username.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
   };
 
-  const handleRetentionChange = (option) => {
-    setRetention(option);
-    localStorage.setItem('setting-retention', option);
-    addToast(`Quick Update: Data retention period is now ${option}`, 'success');
+  const handleLogout = () => {
+    logout();
+    onClose();
+    // Toast alerts are silenced globally, so this is just for internal state consistency
+    addToast('Goodbye! Session ended.', 'info');
+    navigate('/login');
   };
 
-  const themes = [
-    { id: 'dark', name: 'Dark' },
-    { id: 'light', name: 'Light' },
-    { id: 'cyberpunk', name: 'Cyberpunk' }
-  ];
+  const navigateTo = (path) => {
+    navigate(path);
+    onClose();
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
-      className="absolute right-0 top-full mt-3 w-80 bg-bg-main border border-border-main rounded-2xl shadow-2xl overflow-hidden z-50 text-txt-primary"
+    <div 
+      className="profile-menu-custom open" 
+      style={{ 
+        width: '260px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-lift)',
+        padding: '12px',
+        position: 'absolute',
+        right: 0,
+        top: 'calc(100% + 12px)',
+        zIndex: 200,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
+      }}
     >
-      {/* User Profile Header */}
-      <div className="p-5 border-b border-border-main/50 bg-black/15">
-        <p className="text-xs text-txt-secondary font-semibold uppercase tracking-wider">Account</p>
-        <p className="text-base font-bold text-txt-primary truncate mt-1">{user?.username}</p>
-        <p className="text-xs text-txt-secondary truncate mt-0.5">{user?.email}</p>
+      {/* Top Section: User identity */}
+      <div className="profile-head" style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+        <span 
+          style={{ 
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: 'var(--accent-tint)',
+            color: 'var(--accent-dark)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }}
+        >
+          {getInitials()}
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div className="name" style={{ fontWeight: '700', fontSize: '14.5px', color: 'var(--text)' }}>{user?.username}</div>
+          <div className="mail" style={{ fontSize: '12px', color: 'var(--text-soft)' }}>{user?.email}</div>
+        </div>
       </div>
 
-      {/* Options List */}
-      <div className="p-2 space-y-1">
-        {/* Settings Collapsible Button */}
+      {/* Navigation List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
         <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/5 transition-all text-left cursor-pointer ${
-            showSettings ? 'text-brand-primary bg-white/5' : 'text-txt-secondary hover:text-txt-primary'
-          }`}
+          type="button"
+          onClick={() => navigateTo('/')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            borderRadius: 'var(--radius-sm)',
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'var(--text)',
+            fontSize: '13.5px',
+            transition: 'background 0.2s'
+          }}
+          className="menu-item-custom"
         >
-          <span className="flex items-center gap-3">
-            <Sliders className="w-4.5 h-4.5" />
-            Quick Settings
-          </span>
-          <span className="text-xs text-txt-secondary bg-black/25 px-2 py-0.5 rounded-full border border-border-main">
-            {showSettings ? 'Hide' : 'Show'}
-          </span>
+          <svg className="icon" style={{ width: '16px', height: '16px', stroke: 'var(--text-soft)' }} viewBox="0 0 24 24" fill="none" strokeWidth="2">
+            <path d="M12 19V6M6 12l6-6 6 6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Workspace
         </button>
 
-        {/* Quick Settings Panel (Collapsible) */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden bg-black/15 rounded-xl border border-border-main/40 mx-2 p-3 space-y-3"
-            >
-              {/* Theme Selector */}
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-bold text-txt-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-brand-primary" /> Visual Theme
-                </p>
-                <div className="flex gap-1 p-0.5 bg-black/20 rounded-lg border border-border-main/50">
-                  {themes.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => onThemeChange(t.id)}
-                      className={`flex-1 text-center py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
-                        theme === t.id
-                          ? 'bg-brand-primary text-white shadow-sm'
-                          : 'text-txt-secondary hover:text-txt-primary'
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Switch Toggles */}
-              <div className="space-y-2 pt-1 border-t border-border-main/30">
-                <p className="text-[11px] font-bold text-txt-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Bell className="w-3.5 h-3.5 text-brand-secondary" /> Alerts
-                </p>
-                
-                {/* Email Toggle */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-txt-secondary font-medium">Email Alerts</span>
-                  <button
-                    onClick={() => handleToggle('email-alerts', setEmailAlerts, emailAlerts)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer ${
-                      emailAlerts ? 'bg-brand-primary' : 'bg-black/40 border border-border-main'
-                    }`}
-                  >
-                    <div className={`w-3.8 h-3.8 rounded-full bg-white transition-transform ${emailAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Browser Toggle */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-txt-secondary font-medium">Browser Toasts</span>
-                  <button
-                    onClick={() => handleToggle('browser-alerts', setBrowserAlerts, browserAlerts)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer ${
-                      browserAlerts ? 'bg-brand-primary' : 'bg-black/40 border border-border-main'
-                    }`}
-                  >
-                    <div className={`w-3.8 h-3.8 rounded-full bg-white transition-transform ${browserAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Audio Toggle */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-txt-secondary font-medium">Audio Chime</span>
-                  <button
-                    onClick={() => handleToggle('audio-alerts', setAudioAlerts, audioAlerts)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer ${
-                      audioAlerts ? 'bg-brand-primary' : 'bg-black/40 border border-border-main'
-                    }`}
-                  >
-                    <div className={`w-3.8 h-3.8 rounded-full bg-white transition-transform ${audioAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Data Retention */}
-              <div className="space-y-1.5 pt-1 border-t border-border-main/30">
-                <p className="text-[11px] font-bold text-txt-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-brand-secondary" /> Data Retention
-                </p>
-                <div className="grid grid-cols-2 gap-1 bg-black/20 p-0.5 rounded-lg border border-border-main/50">
-                  {['24 Hours', '7 Days', '30 Days', 'Indefinite'].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => handleRetentionChange(opt)}
-                      className={`text-center py-1 rounded text-[10px] font-bold cursor-pointer transition-colors ${
-                        retention === opt
-                          ? 'bg-brand-secondary text-white shadow-sm'
-                          : 'text-txt-secondary hover:text-txt-primary'
-                      }`}
-                    >
-                      {opt === '24 Hours' ? '24h' : opt === '7 Days' ? '7d' : opt === '30 Days' ? '30d' : 'Indef.'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Change Password Button */}
         <button
+          type="button"
+          onClick={() => navigateTo('/history')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            borderRadius: 'var(--radius-sm)',
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'var(--text)',
+            fontSize: '13.5px',
+            transition: 'background 0.2s'
+          }}
+          className="menu-item-custom"
+        >
+          <svg className="icon" style={{ width: '16px', height: '16px', stroke: 'var(--text-soft)' }} viewBox="0 0 24 24" fill="none" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 9h18M8 3v3M16 3v3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          History
+        </button>
+
+
+      </div>
+
+      {/* Divider */}
+      <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+      {/* Security Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <button
+          type="button"
+          className="menu-item-custom"
           onClick={() => {
             onChangePasswordClick();
-            onClose(); // close dropdown popover
           }}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-txt-secondary hover:text-txt-primary hover:bg-white/5 transition-all text-left cursor-pointer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            borderRadius: 'var(--radius-sm)',
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'var(--text)',
+            fontSize: '13.5px',
+            transition: 'background 0.2s'
+          }}
         >
-          <Key className="w-4.5 h-4.5 text-brand-secondary" />
+          <svg className="icon" style={{ width: '16px', height: '16px', stroke: 'var(--text-soft)' }} viewBox="0 0 24 24" fill="none" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
           Change Password
         </button>
 
-        {/* Logout Button */}
         <button
-          onClick={() => {
-            logout();
-            onClose();
-            addToast('Session cleared. Goodbye!', 'info');
+          type="button"
+          className="menu-item-custom"
+          onClick={handleLogout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            borderRadius: 'var(--radius-sm)',
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'var(--text)',
+            fontSize: '13.5px',
+            transition: 'background 0.2s'
           }}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-950/15 transition-all text-left cursor-pointer border-t border-border-main/30 mt-1"
         >
-          <LogOut className="w-4.5 h-4.5" />
-          Sign Out
+          <svg className="icon" style={{ width: '16px', height: '16px', stroke: 'var(--text-soft)' }} viewBox="0 0 24 24" fill="none" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Logout
         </button>
       </div>
-    </motion.div>
+
+      {/* Divider */}
+      <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+      {/* Bottom Section: Theme pill toggle switch */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px 4px' }}>
+        <span style={{ fontSize: '13.5px', color: 'var(--text-soft)', fontWeight: '500' }}>Theme</span>
+        
+        {/* Toggle container */}
+        <div 
+          onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--bg-alt)',
+            borderRadius: '999px',
+            padding: '3px',
+            width: '110px',
+            height: '32px',
+            cursor: 'pointer',
+            border: '1px solid var(--border)',
+            position: 'relative',
+            userSelect: 'none'
+          }}
+        >
+          {/* Active selection capsule background sliding */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: '2px',
+              left: theme === 'light' ? '2px' : 'calc(50% + 1px)',
+              width: 'calc(50% - 3px)',
+              height: 'calc(100% - 4px)',
+              background: 'var(--accent)',
+              borderRadius: '999px',
+              transition: 'left 0.2s ease-in-out',
+              zIndex: 1
+            }}
+          />
+
+          {/* Light toggle label */}
+          <div 
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              zIndex: 2,
+              color: theme === 'light' ? '#fff' : 'var(--text-soft)',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              transition: 'color 0.2s'
+            }}
+          >
+            <svg style={{ width: '12px', height: '12px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+            </svg>
+            {theme === 'light' && <span>Light</span>}
+          </div>
+
+          {/* Dark toggle label */}
+          <div 
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              zIndex: 2,
+              color: theme === 'dark' ? '#fff' : 'var(--text-soft)',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              transition: 'color 0.2s'
+            }}
+          >
+            <svg style={{ width: '11px', height: '11px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            </svg>
+            {theme === 'dark' && <span>Dark</span>}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

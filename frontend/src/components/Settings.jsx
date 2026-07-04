@@ -1,195 +1,176 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Eye, ShieldAlert, Bell, Sliders, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
 
 export default function Settings({ theme, onThemeChange }) {
+  const { user, updatePassword } = useAuth();
   const { addToast } = useToast();
-  
-  // Settings states loaded from localStorage or defaults
-  const [retention, setRetention] = useState(() => localStorage.getItem('setting-retention') || 'Indefinite');
+
+  // Settings states loaded from localStorage
   const [emailAlerts, setEmailAlerts] = useState(() => localStorage.getItem('setting-email-alerts') === 'true');
-  const [browserAlerts, setBrowserAlerts] = useState(() => localStorage.getItem('setting-browser-alerts') !== 'false'); // Default to true
+  const [browserAlerts, setBrowserAlerts] = useState(() => localStorage.getItem('setting-browser-alerts') !== 'false');
   const [audioAlerts, setAudioAlerts] = useState(() => localStorage.getItem('setting-audio-alerts') === 'true');
 
-  const themes = [
-    { id: 'dark', name: 'Dark Mode', desc: 'Minimalist glassmorphism with purple accents', bg: 'bg-[#0a0b10] border-purple-500/30' },
-    { id: 'light', name: 'Light Slate', desc: 'Crisp clean layout with royal indigo lines', bg: 'bg-[#f8fafc] border-indigo-500/30' },
-    { id: 'cyberpunk', name: 'Cyberpunk 2077', desc: 'High-contrast grid overlay, hot pink neon', bg: 'bg-[#030307] border-cyan-500/30' }
-  ];
+  // Change password states
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
-  const retentionOptions = ['24 Hours', '7 Days', '30 Days', 'Indefinite'];
+  const [currentInvalid, setCurrentInvalid] = useState(false);
+  const [newInvalid, setNewInvalid] = useState(false);
+  const [confirmInvalid, setConfirmInvalid] = useState(false);
 
-  // Sync settings with LocalStorage
   const handleToggle = (setting, stateSetter, stateVal) => {
     const newVal = !stateVal;
     stateSetter(newVal);
     localStorage.setItem(`setting-${setting}`, newVal.toString());
-    addToast(`Preferences updated: ${setting} is now ${newVal ? 'ENABLED' : 'DISABLED'}`, 'success');
+    addToast(`Preferences updated: ${setting.replace('-', ' ')} is now ${newVal ? 'ENABLED' : 'DISABLED'}`, 'success');
   };
 
-  const handleRetentionChange = (option) => {
-    setRetention(option);
-    localStorage.setItem('setting-retention', option);
-    addToast(`Data retention period set to: ${option}`, 'success');
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+
+    setCurrentInvalid(currentPass.length === 0);
+    setNewInvalid(newPass.length < 6);
+    setConfirmInvalid(confirmPass !== newPass || confirmPass.length === 0);
+
+    if (currentPass.length === 0 || newPass.length < 6 || confirmPass !== newPass) {
+      addToast('Please satisfy all password update requirements', 'error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await updatePassword(currentPass, newPass);
+      addToast('Password updated successfully!', 'success');
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+    } catch (err) {
+      addToast(err.message || 'Incorrect current password', 'error');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
-  const ToggleSwitch = ({ active, onChange }) => (
-    <div
-      onClick={onChange}
-      className={`w-12 h-7 rounded-full p-1 cursor-pointer transition-colors relative flex items-center ${
-        active ? 'bg-brand-primary' : 'bg-black/30 border border-border-main'
-      }`}
-    >
-      <motion.div
-        layout
-        transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-        className="w-5 h-5 rounded-full bg-white shadow-md"
-        animate={{ x: active ? 20 : 0 }}
-      />
-    </div>
-  );
+  const getInitials = () => {
+    if (!user || !user.username) return 'JS';
+    return user.username.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      className="max-w-4xl w-full mx-auto space-y-6"
-    >
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-black text-txt-primary tracking-tight">
-          System Preferences
-        </h1>
-        <p className="text-sm text-txt-secondary mt-1">
-          Customize UI aesthetics, layout themes, notifications, and ledger retention policies.
-        </p>
+    <section className="view wrap" id="view-settings">
+      <div className="view-head">
+        <div>
+          <span className="eyebrow">Account</span>
+          <h2>Settings</h2>
+        </div>
+        <p>Manage how InsightStream looks and how you sign in.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* 1. Theme Configuration Panel */}
-        <div className="md:col-span-3 glass-panel p-6 rounded-3xl border border-border-main space-y-4">
-          <h3 className="text-lg font-bold text-txt-primary flex items-center gap-2">
-            <Eye className="w-5 h-5 text-brand-primary" />
-            Visual Themes
-          </h3>
+      <div className="settings-grid">
+        {/* Left Column: Appearance and Account Info */}
+        <div className="settings-card">
+          <h3>Appearance</h3>
+          <p className="sub">Switch between light and dark at any time.</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {themes.map((t) => {
-              const isSelected = theme === t.id;
-              
-              return (
-                <div
-                  key={t.id}
-                  onClick={() => onThemeChange(t.id)}
-                  className={`glass-panel p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-36 hover:scale-[1.01] ${
-                    isSelected ? `${t.bg} neon-glow ring-1 ring-brand-primary` : 'border-border-main hover:border-brand-primary/40'
-                  }`}
-                >
-                  <div>
-                    <h4 className="font-bold text-txt-primary text-sm flex items-center justify-between">
-                      {t.name}
-                      {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-primary" />}
-                    </h4>
-                    <p className="text-xs text-txt-secondary mt-1 leading-relaxed">
-                      {t.desc}
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <span className="w-4.5 h-4.5 rounded-full bg-brand-primary border border-white/20" />
-                    <span className="w-4.5 h-4.5 rounded-full bg-brand-secondary border border-white/20" />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="segmented" id="settingsThemeSwitch" style={{ maxWidth: '280px' }}>
+            <button
+              type="button"
+              className={theme === 'light' ? 'active' : ''}
+              onClick={() => onThemeChange('light')}
+            >
+              <svg className="icon" style={{ width: '14px', height: '14px' }} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+              </svg>
+              Light
+            </button>
+            <button
+              type="button"
+              className={theme === 'dark' || theme === 'cyberpunk' ? 'active' : ''}
+              onClick={() => onThemeChange('dark')}
+            >
+              <svg className="icon" style={{ width: '14px', height: '14px' }} viewBox="0 0 24 24">
+                <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>
+              </svg>
+              Dark
+            </button>
           </div>
-        </div>
 
-        {/* 2. Data Retention Policy */}
-        <div className="glass-panel p-6 rounded-3xl border border-border-main space-y-4">
-          <h3 className="text-lg font-bold text-txt-primary flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-brand-secondary" />
-            Ledger Data Retention
-          </h3>
-          <p className="text-xs text-txt-secondary leading-relaxed">
-            Specify how long processed AI insights and raw payload content stay cached inside the MongoDB & Redis servers.
-          </p>
-
-          <div className="space-y-2 pt-2">
-            {retentionOptions.map((option) => {
-              const isActive = retention === option;
-              
-              return (
-                <button
-                  key={option}
-                  onClick={() => handleRetentionChange(option)}
-                  className={`w-full py-2.5 px-4 rounded-xl border text-xs font-semibold flex items-center justify-between cursor-pointer transition-all ${
-                    isActive 
-                      ? 'bg-brand-secondary/10 border-brand-secondary text-brand-secondary neon-glow' 
-                      : 'bg-black/10 border-border-main text-txt-secondary hover:border-brand-secondary/40 hover:text-txt-primary'
-                  }`}
-                >
-                  {option}
-                  {isActive && <div className="w-2 h-2 rounded-full bg-brand-secondary animate-ping" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 3. Notification Settings */}
-        <div className="md:col-span-2 glass-panel p-6 rounded-3xl border border-border-main space-y-4">
-          <h3 className="text-lg font-bold text-txt-primary flex items-center gap-2">
-            <Bell className="w-5 h-5 text-brand-primary" />
-            Notification Settings
-          </h3>
-          <p className="text-xs text-txt-secondary leading-relaxed">
-            Stay updated in real time when long-running queue processes complete, even when navigations occur.
-          </p>
-
-          <div className="divide-y divide-border-main/50">
-            {/* Toggle row 1 */}
-            <div className="flex justify-between items-center py-4">
+          <div style={{ marginTop: '26px' }}>
+            <h3>Account</h3>
+            <p className="sub">Signed in as</p>
+            <div className="account-row">
+              <span className="avatar">{getInitials()}</span>
               <div>
-                <h4 className="text-sm font-bold text-txt-primary">Email Notifications</h4>
-                <p className="text-xs text-txt-secondary mt-0.5">Send a digest report of completed insights.</p>
+                <div className="name">{user?.username}</div>
+                <div className="mail">{user?.email}</div>
               </div>
-              <ToggleSwitch 
-                active={emailAlerts} 
-                onChange={() => handleToggle('email-alerts', setEmailAlerts, emailAlerts)} 
-              />
-            </div>
-            
-            {/* Toggle row 2 */}
-            <div className="flex justify-between items-center py-4">
-              <div>
-                <h4 className="text-sm font-bold text-txt-primary">Browser Toast Notifications</h4>
-                <p className="text-xs text-txt-secondary mt-0.5">Display persistent floating alerts in the browser workspace.</p>
-              </div>
-              <ToggleSwitch 
-                active={browserAlerts} 
-                onChange={() => handleToggle('browser-alerts', setBrowserAlerts, browserAlerts)} 
-              />
-            </div>
-
-            {/* Toggle row 3 */}
-            <div className="flex justify-between items-center py-4">
-              <div>
-                <h4 className="text-sm font-bold text-txt-primary">Auditory Alerts</h4>
-                <p className="text-xs text-txt-secondary mt-0.5">Play a notification chime when the pipeline finishes execution.</p>
-              </div>
-              <ToggleSwitch 
-                active={audioAlerts} 
-                onChange={() => handleToggle('audio-alerts', setAudioAlerts, audioAlerts)} 
-              />
             </div>
           </div>
+
+
         </div>
 
+        {/* Right Column: Password Form */}
+        <div className="settings-card">
+          <h3>Change password</h3>
+          <p className="sub">Choose a new password for your account.</p>
+          
+          <form onSubmit={handlePasswordSubmit} id="passwordForm">
+            <div className={`field ${currentInvalid ? 'invalid' : ''}`}>
+              <label htmlFor="currentPass">Current password</label>
+              <input
+                type="password"
+                id="currentPass"
+                placeholder="••••••••"
+                value={currentPass}
+                onChange={(e) => {
+                  setCurrentPass(e.target.value);
+                  setCurrentInvalid(false);
+                }}
+              />
+              <div className="err">Enter your current password.</div>
+            </div>
+
+            <div className={`field ${newInvalid ? 'invalid' : ''}`}>
+              <label htmlFor="newPass">New password</label>
+              <input
+                type="password"
+                id="newPass"
+                placeholder="At least 6 characters"
+                value={newPass}
+                onChange={(e) => {
+                  setNewPass(e.target.value);
+                  setNewInvalid(false);
+                }}
+              />
+              <div className="err">New password must be at least 6 characters.</div>
+            </div>
+
+            <div className={`field ${confirmInvalid ? 'invalid' : ''}`}>
+              <label htmlFor="confirmPass">Confirm new password</label>
+              <input
+                type="password"
+                id="confirmPass"
+                placeholder="••••••••"
+                value={confirmPass}
+                onChange={(e) => {
+                  setConfirmPass(e.target.value);
+                  setConfirmInvalid(false);
+                }}
+              />
+              <div className="err">Passwords don't match.</div>
+            </div>
+
+            <button type="submit" className="btn btn-primary" disabled={passwordLoading}>
+              {passwordLoading ? 'Saving...' : 'Save password'}
+            </button>
+          </form>
+        </div>
       </div>
-    </motion.div>
+    </section>
   );
 }

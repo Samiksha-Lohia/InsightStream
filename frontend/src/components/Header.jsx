@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthProvider';
 import { useToast } from '../context/ToastProvider';
-import { Sparkles, History, FileText, Lock, X } from 'lucide-react';
-import Logo from './landing/Logo';
 import ProfileDropdown from './ProfileDropdown';
 
 export default function Header({ theme, onThemeChange }) {
@@ -15,24 +12,52 @@ export default function Header({ theme, onThemeChange }) {
   const currentPath = location.pathname;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  
-  // Password change states
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordLoading, setPasswordLoading] = useState(false);
-
   const dropdownRef = useRef(null);
 
-  // Unauthenticated user redirection logic
+  // Change password states
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const [currentInvalid, setCurrentInvalid] = useState(false);
+  const [newInvalid, setNewInvalid] = useState(false);
+  const [confirmInvalid, setConfirmInvalid] = useState(false);
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+
+    setCurrentInvalid(currentPass.length === 0);
+    setNewInvalid(newPass.length < 6);
+    setConfirmInvalid(confirmPass !== newPass || confirmPass.length === 0);
+
+    if (currentPass.length === 0 || newPass.length < 6 || confirmPass !== newPass) {
+      addToast('Please satisfy all password update requirements', 'error');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await updatePassword(currentPass, newPass);
+      addToast('Password updated successfully!', 'success');
+      setPasswordModalOpen(false);
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+    } catch (err) {
+      addToast(err.message || 'Incorrect current password', 'error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user && currentPath !== '/login' && currentPath !== '/register') {
       navigate('/login');
     }
   }, [user, currentPath, navigate]);
 
-  // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -43,248 +68,168 @@ export default function Header({ theme, onThemeChange }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle password update submit
-  const handlePasswordUpdateSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      addToast('All password fields are required', 'error');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      addToast('New password must be at least 6 characters long', 'error');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      addToast('New passwords do not match', 'error');
-      return;
-    }
-
-    setPasswordLoading(true);
-    try {
-      await updatePassword(oldPassword, newPassword);
-      addToast('Password updated successfully!', 'success');
-      setShowPasswordModal(false);
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err) {
-      addToast(err.message || 'Incorrect old password', 'error');
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
-  // Get user initials for the avatar
   const getInitials = () => {
-    if (!user || !user.username) return '?';
-    const parts = user.username.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    if (!user || !user.username) return 'JS';
+    return user.username.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
   };
 
   const isAuthPage = currentPath === '/login' || currentPath === '/register';
 
+  if (isAuthPage || !user) return null;
+
   return (
     <>
-      <nav className="sticky top-0 z-40 w-full glass-panel border-b border-border-main py-4 px-6 md:px-12 flex justify-between items-center transition-all">
-        {/* Brand Logo Link */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="p-1 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary group-hover:scale-105 transition-transform duration-300 flex items-center justify-center">
-            <Logo className="w-8 h-8" />
-          </div>
-          <div>
-            <span className="text-xl font-bold tracking-tight text-txt-primary group-hover:text-brand-primary transition-colors">
-              Insight<span className="text-brand-secondary font-extrabold">Stream</span>
-            </span>
-            <span className="block text-[10px] text-txt-secondary font-mono tracking-widest uppercase">
-              AI Analysis Pipeline
-            </span>
-          </div>
+      <header className="nav">
+        <div className="wrap nav-row">
+        {/* Brand */}
+        <Link to="/" className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--text)', fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 'bold' }}>
+          <span className="brand-mark" style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '20px', height: '20px' }}>
+              <circle cx="9" cy="12" r="5" />
+              <circle cx="15" cy="12" r="5" />
+            </svg>
+          </span>
+          Insight Stream
         </Link>
 
-        {/* Navigation Elements - Redesigned, Decoupled & Fully Styled */}
-        {!isAuthPage && user && (
-          <div className="flex items-center gap-5 relative" ref={dropdownRef}>
-            {/* Pill Box ONLY for navigation links */}
-            <div className="flex gap-1 bg-black/10 dark:bg-black/25 p-1 rounded-xl border border-border-main relative items-center">
-              {/* 1. Upload & Process Link */}
-              <Link
-                to="/"
-                className={`relative px-4 py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm font-semibold transition-colors duration-300 cursor-pointer ${
-                  currentPath === '/' ? 'text-brand-primary font-bold' : 'text-txt-secondary hover:text-txt-primary'
-                }`}
-              >
-                {currentPath === '/' && (
-                  <motion.div
-                    layoutId="nav-active-pill"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    className="absolute inset-0 bg-brand-primary/10 dark:bg-brand-primary/15 border border-brand-primary/25 rounded-lg -z-10"
-                  />
-                )}
-                <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">Upload & Process</span>
-              </Link>
-
-              {/* 2. Dashboard Link */}
-              <Link
-                to="/history"
-                className={`relative px-4 py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm font-semibold transition-colors duration-300 cursor-pointer ${
-                  currentPath === '/history' ? 'text-brand-primary font-bold' : 'text-txt-secondary hover:text-txt-primary'
-                }`}
-              >
-                {currentPath === '/history' && (
-                  <motion.div
-                    layoutId="nav-active-pill"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    className="absolute inset-0 bg-brand-primary/10 dark:bg-brand-primary/15 border border-brand-primary/25 rounded-lg -z-10"
-                  />
-                )}
-                <History className="w-4 h-4" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </Link>
-            </div>
-
-            {/* 3. Decoupled Profile Avatar button with zoom and hover ring feedback */}
-            <button
+        {/* Profile Menu actions */}
+        <div className="nav-actions">
+          <div className="profile" ref={dropdownRef}>
+            <button 
+              type="button" 
+              className="avatar" 
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="w-10 h-10 rounded-full bg-brand-primary/10 border border-brand-primary/30 hover:border-brand-primary flex items-center justify-center text-sm font-black text-brand-primary hover:bg-brand-primary/20 transition-all duration-300 cursor-pointer select-none hover:scale-105 active:scale-95 focus:outline-none shadow-md hover:shadow-brand-primary/15 ring-2 ring-offset-2 ring-offset-bg-main ring-transparent hover:ring-brand-primary/45"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'var(--bg-alt)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
             >
               {getInitials()}
             </button>
-
-            {/* Profile Dropdown Popover */}
-            <AnimatePresence>
-              {dropdownOpen && (
-                <ProfileDropdown
-                  theme={theme}
-                  onThemeChange={onThemeChange}
-                  onClose={() => setDropdownOpen(false)}
-                  onChangePasswordClick={() => setShowPasswordModal(true)}
-                />
-              )}
-            </AnimatePresence>
+            
+            {dropdownOpen && (
+              <ProfileDropdown
+                theme={theme}
+                onThemeChange={onThemeChange}
+                onChangePasswordClick={() => {
+                  setPasswordModalOpen(true);
+                  setDropdownOpen(false);
+                }}
+                onClose={() => setDropdownOpen(false)}
+              />
+            )}
           </div>
-        )}
-      </nav>
+        </div>
+      </div>
+    </header>
 
-      {/* Viewport Overlay Password Change Modal - Relocated to avoid unmount bugs */}
-      <AnimatePresence>
-        {showPasswordModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPasswordModal(false)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm cursor-pointer"
-            />
-
-            {/* Modal Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="relative w-full max-w-md bg-bg-main border border-border-main p-8 rounded-3xl shadow-2xl z-10 space-y-6 text-txt-primary"
+    {/* Change Password Modal */}
+    {passwordModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 1000,
+          padding: '40px 20px',
+          overflowY: 'auto'
+        }}>
+          <div className="auth-card" style={{ position: 'relative', width: '100%', maxWidth: '420px', zIndex: 1010, margin: 'auto' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordModalOpen(false);
+                setCurrentPass('');
+                setNewPass('');
+                setConfirmPass('');
+                setCurrentInvalid(false);
+                setNewInvalid(false);
+                setConfirmInvalid(false);
+              }}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-soft)',
+                cursor: 'pointer'
+              }}
             >
-              {/* Close Button */}
-              <button
-                onClick={() => setShowPasswordModal(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-border-main text-txt-secondary hover:text-txt-primary transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {/* Header */}
-              <div className="space-y-1 text-center md:text-left">
-                <div className="inline-flex p-2.5 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary mb-1">
-                  <Lock className="w-6 h-6 neon-text-glow" />
-                </div>
-                <h3 className="text-xl font-black text-txt-primary tracking-tight">
-                  Update Password
-                </h3>
-                <p className="text-xs text-txt-secondary">
-                  Secure your account by entering a new authorization password
-                </p>
+              <svg className="icon" style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+            </button>
+            
+            <h2>Change password</h2>
+            <p className="sub">Enter your details to change your account password.</p>
+            
+            <form onSubmit={handlePasswordSubmit} id="passwordForm">
+              <div className={`field ${currentInvalid ? 'invalid' : ''}`}>
+                <label htmlFor="modalCurrentPass">Current password</label>
+                <input
+                  type="password"
+                  id="modalCurrentPass"
+                  placeholder="••••••••"
+                  value={currentPass}
+                  onChange={(e) => {
+                    setCurrentPass(e.target.value);
+                    setCurrentInvalid(false);
+                  }}
+                />
+                <div className="err">Enter your current password.</div>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handlePasswordUpdateSubmit} className="space-y-4">
-                {/* Current Password */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-txt-secondary uppercase tracking-wider">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 bg-black/25 rounded-xl border border-border-main text-sm text-txt-primary focus:outline-none focus:border-brand-primary/75 focus:ring-1 focus:ring-brand-primary/30 transition-all placeholder-txt-secondary/40 font-medium"
-                  />
-                </div>
+              <div className={`field ${newInvalid ? 'invalid' : ''}`}>
+                <label htmlFor="modalNewPass">New password</label>
+                <input
+                  type="password"
+                  id="modalNewPass"
+                  placeholder="At least 6 characters"
+                  value={newPass}
+                  onChange={(e) => {
+                    setNewPass(e.target.value);
+                    setNewInvalid(false);
+                  }}
+                />
+                <div className="err">New password must be at least 6 characters.</div>
+              </div>
 
-                {/* New Password */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-txt-secondary uppercase tracking-wider">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min 6 characters"
-                    className="w-full px-4 py-3 bg-black/25 rounded-xl border border-border-main text-sm text-txt-primary focus:outline-none focus:border-brand-primary/75 focus:ring-1 focus:ring-brand-primary/30 transition-all placeholder-txt-secondary/40 font-medium"
-                  />
-                </div>
+              <div className={`field ${confirmInvalid ? 'invalid' : ''}`}>
+                <label htmlFor="modalConfirmPass">Confirm new password</label>
+                <input
+                  type="password"
+                  id="modalConfirmPass"
+                  placeholder="••••••••"
+                  value={confirmPass}
+                  onChange={(e) => {
+                    setConfirmPass(e.target.value);
+                    setConfirmInvalid(false);
+                  }}
+                />
+                <div className="err">Passwords don't match.</div>
+              </div>
 
-                {/* Confirm New Password */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-txt-secondary uppercase tracking-wider">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    className="w-full px-4 py-3 bg-black/25 rounded-xl border border-border-main text-sm text-txt-primary focus:outline-none focus:border-brand-primary/75 focus:ring-1 focus:ring-brand-primary/30 transition-all placeholder-txt-secondary/40 font-medium"
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswordModal(false)}
-                    className="flex-1 py-3 rounded-xl border border-border-main text-sm font-bold text-txt-secondary hover:text-txt-primary hover:bg-white/5 cursor-pointer transition-all active:scale-[0.98]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={passwordLoading}
-                    className="flex-1 py-3 rounded-xl bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-sm shadow-md hover:shadow-brand-primary/10 transition-all duration-300 relative cursor-pointer active:scale-[0.98] disabled:opacity-55 disabled:cursor-not-allowed border border-white/10"
-                  >
-                    {passwordLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block vertical-middle" />
-                    ) : (
-                      'Update'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+              <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: '16px' }} disabled={passwordLoading}>
+                {passwordLoading ? 'Saving...' : 'Save password'}
+              </button>
+            </form>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </>
   );
 }

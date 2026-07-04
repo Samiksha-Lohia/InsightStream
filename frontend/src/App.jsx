@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { API_URL } from './config';
 import Header from './components/Header';
 import Login from './components/Login';
 import Register from './components/Register';
-import UploadZone from './components/UploadZone';
-import ProgressSection from './components/ProgressSection';
+import Workspace from './components/Workspace';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import ErrorBoundary from './components/ErrorBoundary';
 import { SocketProvider, useSocket } from './context/SocketProvider';
 import { ToastProvider, useToast } from './context/ToastProvider';
 import { AuthProvider, useAuth } from './context/AuthProvider';
-import LandingPage from './components/landing/LandingPage';
 
 // Route guard for authenticated users
 function ProtectedRoute({ children }) {
@@ -72,32 +69,26 @@ function AnimatedApp({ theme, setTheme }) {
 
   const [activeDocId, setActiveDocId] = useState(null);
 
-  const isLandingPage = !loading && !user && location.pathname === '/';
   // Sync visual theme with root document body and html elements
   useEffect(() => {
-    if (isLandingPage) return;
-
-    // Force "dark" purple brand theme if user is not authenticated (login/register)
-    const activeTheme = user ? theme : 'dark';
+    const activeTheme = theme === 'cyberpunk' ? 'dark' : theme;
 
     const body = document.body;
-    body.className = 'tech-grid min-h-screen relative';
-    body.classList.add(`theme-${activeTheme}`);
+    body.className = `theme-${theme}`;
     
     const html = document.documentElement;
-    html.className = `theme-${activeTheme}`;
+    html.className = `theme-${theme}`;
+    html.setAttribute('data-theme', activeTheme);
 
-    if (user) {
-      localStorage.setItem('theme-preference', theme);
-    }
-  }, [theme, isLandingPage, user]);
+    localStorage.setItem('theme-preference', theme);
+  }, [theme]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0b10]">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)]">
         <div className="relative font-mono">
-          <div className="w-12 h-12 rounded-full border-2 border-[#a855f7]/20 border-t-[#a855f7] animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[#a855f7]">IS</div>
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--accent)]/20 border-t-[var(--accent)] animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--accent)]">IS</div>
         </div>
       </div>
     );
@@ -144,19 +135,40 @@ function AnimatedApp({ theme, setTheme }) {
     navigate('/');
   };
 
-  if (isLandingPage) {
-    return <LandingPage theme={theme} setTheme={setTheme} />;
+
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+
+  if (isAuthPage) {
+    return (
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login theme={theme} onThemeChange={setTheme} />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <Register theme={theme} onThemeChange={setTheme} />
+            </PublicRoute>
+          }
+        />
+      </Routes>
+    );
   }
 
   return (
-    <div className="flex flex-col min-h-screen text-txt-primary">
+    <div className="flex flex-col h-screen overflow-hidden text-txt-primary">
       {/* Sticky navigation header */}
       <Header theme={theme} onThemeChange={setTheme} />
 
       {/* Primary Workspace View Area */}
-      <main className="flex-grow flex items-center justify-center p-6 md:p-12 max-w-7xl w-full mx-auto">
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+      <main className="flex-grow flex items-stretch p-6 max-w-7xl w-full mx-auto overflow-hidden">
+        <Routes location={location} key={location.pathname}>
             
             {/* Public Auth Routes */}
             <Route
@@ -164,7 +176,7 @@ function AnimatedApp({ theme, setTheme }) {
               element={
                 <PublicRoute>
                   <PageWrapper>
-                    <Login />
+                    <Login theme={theme} onThemeChange={setTheme} />
                   </PageWrapper>
                 </PublicRoute>
               }
@@ -174,7 +186,7 @@ function AnimatedApp({ theme, setTheme }) {
               element={
                 <PublicRoute>
                   <PageWrapper>
-                    <Register />
+                    <Register theme={theme} onThemeChange={setTheme} />
                   </PageWrapper>
                 </PublicRoute>
               }
@@ -186,24 +198,7 @@ function AnimatedApp({ theme, setTheme }) {
               element={
                 <ProtectedRoute>
                   <PageWrapper>
-                    {!activeDocId ? (
-                      <div className="flex flex-col items-center justify-center space-y-6 w-full py-8">
-                        <div className="text-center space-y-2">
-                          <h1 className="text-4xl md:text-5xl font-black text-txt-primary tracking-tight">
-                            Immersive AI Document Insights
-                          </h1>
-                          <p className="text-sm md:text-base text-txt-secondary max-w-lg mx-auto">
-                            Submit text payloads to run structural summaries, entity linkages, and keyword analysis in real-time.
-                          </p>
-                        </div>
-                        <UploadZone onUpload={handleUploadSubmit} />
-                      </div>
-                    ) : (
-                      <ProgressSection
-                        documentId={activeDocId}
-                        onBack={() => setActiveDocId(null)}
-                      />
-                    )}
+                    <Workspace activeDocId={activeDocId} setActiveDocId={setActiveDocId} theme={theme} onThemeChange={setTheme} />
                   </PageWrapper>
                 </ProtectedRoute>
               }
@@ -232,33 +227,20 @@ function AnimatedApp({ theme, setTheme }) {
             />
 
           </Routes>
-        </AnimatePresence>
       </main>
-      
-      {/* Dynamic footer status */}
-      <footer className="py-6 border-t border-border-main/55 text-center text-xs text-txt-secondary font-mono">
-        InsightStream Pipeline &copy; {new Date().getFullYear()} // System operational.
-      </footer>
     </div>
   );
 }
 
-// Framer Motion Page transition wrapper
+// Light page transition wrapper using standard CSS classes
 function PageWrapper({ children }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
-      transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="w-full flex items-center justify-center"
-    >
+    <div className="w-full h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-// Global App wrapper injection
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme-preference') || 'dark');
 
