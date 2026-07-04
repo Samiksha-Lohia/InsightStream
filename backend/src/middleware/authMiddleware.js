@@ -18,7 +18,7 @@ export const protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET || "supersecretjwtkey_insightstream_12345"
+        process.env.JWT_SECRET || "insightstream_jwt_secret_key_2026_xyz"
       );
 
       // Get user from the token (exclude password) and attach to request

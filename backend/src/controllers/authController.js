@@ -3,7 +3,8 @@ import jwt from "jsonwebtoken";
 
 // Helper to generate JWT token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  const secret = process.env.JWT_SECRET || "insightstream_jwt_secret_key_2026_xyz";
+  return jwt.sign({ id }, secret, {
     expiresIn: "30d",
   });
 };
