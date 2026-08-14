@@ -10,6 +10,7 @@
 
 ## 📋 Table of Contents
 - [Overview](#-overview)
+- [Preview](#-preview)
 - [What Makes InsightStream Different](#-what-makes-insightstream-different)
 - [Core Features & Modules](#-core-features--modules)
 - [System Architecture](#-system-architecture)
@@ -28,6 +29,14 @@
 InsightStream processes complex document analysis jobs asynchronously. Because Large Language Model (LLM) queries are computationally heavy and highly latent, running analysis directly in the HTTP request-response cycle degrades user experience and blocks servers.
 
 InsightStream handles this by decoupling the architecture: the Express server registers the upload, pushes the job to a **BullMQ** queue backed by **Redis**, and instantly returns a `202 Accepted` status. A separate **background worker** pulls the job, interacts with the **Groq API** to process the document text, and saves the generated markdown insights to **MongoDB**. Real-time updates are pushed to the client using **Socket.io** event triggers, and subsequent reads are optimized using an in-memory **Cache-Aside Redis configuration**.
+
+---
+
+## 📸 Preview
+
+| Upload | Workspace Dashboard & Analysis |
+| :---: | :---: |
+| ![Auth Interface](images/Screenshot%202026-08-14%20105155.png) | ![Workspace Interface](images/Screenshot%202026-08-14%20105309.png) |
 
 ---
 
