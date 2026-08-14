@@ -1,338 +1,267 @@
-# InsightStream: Immersive AI Document Insights Pipeline
+# InsightStream — AI-Powered Asynchronous Document Analysis Platform
 
-InsightStream is an enterprise-ready asynchronous document analysis platform designed to ingest text payloads, queue tasks via a message broker, generate generative AI insights using the Groq Cloud API (Llama 3.3), and stream real-time progress updates to a client dashboard via WebSockets. It features secure JWT authentication, multi-worker queue scalability using Redis/BullMQ, and high-performance tenant-isolated caching.
+> **Not just a summary.** InsightStream is an asynchronous document analysis platform designed to digest, queue, and extract deep insights from uploaded files using state-of-the-art LLMs, while providing live status streaming and high-speed caching.
 
----
-
-## 🏗️ System Architecture & Design Decisions
-
-InsightStream's architecture separates client ingestion, asynchronous job scheduling, and high-performance caching to maximize system throughput and resilience.
-
-```
-                  ┌──────────────────────────────────────────┐
-                  │              Vite / React                │
-                  │                Frontend                  │
-                  └─────────────┬──────────────▲─────────────┘
-                                │              │
-                   HTTP REST    │              │  WebSockets
-                  JWT Protected │              │  Real-Time Progress
-                                ▼              │
-                  ┌────────────────────────────┴─────────────┐
-                  │           Express API Gateway            │
-                  └─────────────┬──────────────┬─────────────┘
-                                │              │
-                   Read/Write   │              │  Job Dispatch
-                   Operations   ▼              ▼
-           ┌──────────────────────┐          ┌──────────────────────┐
-           │   MongoDB Database   │          │  Redis Queue (Bull)  │
-           │  (Persistent State)  │          │  & Cache-Aside Store │
-           └──────────────────────┘          └──────────┬───────────┘
-                                                        │
-                                                        │ Dequeue Job
-                                                        ▼
-                                             ┌──────────────────────┐
-                                             │  Background Worker   │
-                                             └──────────┬───────────┘
-                                                        │
-                                                        │ Chat Completion
-                                                        ▼
-                                             ┌──────────────────────┐
-                                             │    Groq Cloud API    │
-                                             │     (Llama 3.3)      │
-                                             └──────────────────────┘
-```
-
-Detailed sequence diagrams, database schemas, and state machine models are documented in the [System Design Specification](file:///c:/Users/Lenovo/Desktop/Insight%20Stream/system_design.md).
-
-### Design Decisions: Why vs. Why Not
-
-| Architectural Component | Why (Pros & Production Suitability) | Why Not (Alternatives & Disadvantages) |
-| :--- | :--- | :--- |
-| **BullMQ (Redis-backed Queue) over In-Memory Queues** | **Resilience & Process Decoupling:** Volatile jobs survive server crashes. Moving intensive AI processing to background worker processes prevents event-loop blocking on the Express server. Enables horizontal scaling (multiple worker nodes dequeuing from the same Redis instance). | **In-Memory Arrays / Async Libraries:** Jobs are stored in volatile RAM; any process restart or deployment terminates active workloads. Heavy execution blocks the main Node.js process, hurting API performance. Cannot scale workers independently. |
-| **WebSockets (Socket.io) over HTTP Polling** | **Real-Time Push & Low Overhead:** Provides instantaneous server-to-client progress updates (10% -> 20% -> 70% -> 100%) over a single, persistent TCP connection. Drastically reduces network traffic and minimizes latency. | **HTTP Short/Long Polling:** Floods the server with redundant requests, wastefully consuming database read capacity, degrading application performance, and exhausting socket connections. |
-| **Redis Cache over Local In-Memory Cache (e.g., Node-Cache)** | **Shared State in Distributed Environments:** Synchronizes cached results across multiple API nodes. Allows background workers running in isolated processes to invalidate keys (`client.del(id)`) upon completion, ensuring immediate data consistency. | **Local Process Memory:** Isolated to a single node. Background workers cannot invalidate cache entries on API servers without complex inter-process messaging, leading to inconsistent or stale reads. |
-| **MongoDB Native TTL Indexing over Manual Cron Cleanups** | **Declarative & Zero Maintenance:** Offloads scheduling and execution to MongoDB's background threads. Automatically purges expired document logs without custom worker code or execution overhead. Indefinite logs are supported simply by writing `null` to the expiration field. | **Custom Node Cron/Worker Tasks:** Demands dedicated process resources, complicates horizontal deployment configurations (e.g. running redundant crons on multiple instances), and scales poorly without custom sharding/batching logic. |
-
-### Data Flow, Caching & Data Retention
-
-InsightStream implements a high-performance **Cache-Aside (Lazy Loading) Pattern** with strict tenant isolation and automated data retention policies:
-
-1. **Write Path (Ingestion & Retention Setup):**
-   * The client dispatches a document payload alongside their preferred retention setting (e.g., `"24 Hours"`).
-   * The API server computes the target expiration timestamp (`expiresAt`), creates the record in MongoDB with `Pending` status, and dispatches a job to BullMQ.
-   * The system immediately returns an asynchronous acknowledgment (`202 Accepted`) containing the `documentId`. No data is written to the cache during ingestion, keeping writes extremely fast.
-2. **Worker Path (Async Processing & Cache Invalidation):**
-   * The background worker fetches the job, updates the MongoDB document status to `Processing`, calls the Groq AI API for insights, and writes the completed insights back to MongoDB (`Completed`).
-   * The worker explicitly invalidates the cache for this document by running `redisClient.del(documentId)`. This prevents the API from serving stale or temporary data.
-3. **Read Path (Retrieval via Cache-Aside):**
-   * When a client requests `GET /api/documents/:id`, the route verifies the client's JWT.
-   * **Cache Hit:** The server queries Redis for the key. If found, it parses the JSON and asserts that `parsedDoc.user === req.user._id` to enforce security. If ownership is verified, the document is returned. If ownership verification fails, it falls back to MongoDB.
-   * **Cache Miss:** The server queries MongoDB using the compound filter `{ _id: id, user: req.user._id }`. If the document exists and has reached a terminal status (`Completed` or `Failed`), it is serialized, written to Redis with a **1-hour TTL (Time-To-Live)**, and returned to the client.
-   * **Why Cache-Aside over Write-Through?**
-     A Write-Through strategy updates the cache synchronously during database writes. Because documents begin in a `Pending` state and undergo time-consuming AI generation, write-through caching would clutter Redis with temporary data that require immediate invalidation once completed. Cache-Aside keeps the cache clean, ensuring only terminal, requested documents occupy RAM.
-4. **Retention Cleanup Path (MongoDB TTL Index):**
-   * The database runs a background task once every 60 seconds that checks the TTL index on the `expiresAt` field.
-   * Documents whose `expiresAt` timestamps are in the past are automatically deleted from the database. Indefinite logs have an `expiresAt` value of `null` and are ignored by the index, persisting indefinitely.
-
-### 🎨 Premium Unified Workspace & Interactive Features
-
-1. **Unified Workspace Panel (Route `/`):**
-   * Authenticated users are directed to a clean, side-by-side dashboard workspace. Unauthenticated guests are automatically redirected to `/login` via protected route guards.
-   * The input section supports text area pasting or custom drag-and-drop file ingestion, displaying dynamic status messages that cycle through actual worker events.
-
-2. **Text Highlighting & Custom Color Markings:**
-   * Users can highlight text inside the parsed Markdown insights view using a custom-developed text selection bubble toolbar.
-   * Highlights are wrapped in color-coded `<mark>` tags and serialized persistently to `localStorage` under `insightstream-highlights-${activeDocId}`.
-
-3. **Contextual Document Notes & Annotations:**
-   * Integrated a collapsible annotations panel directly into the workspace interface.
-   * Allows writing, reading, and deleting local, timestamped note entries mapped to the active document and stored in `localStorage` under `insightstream-notes-${activeDocId}`.
-
-4. **Dynamic Keyphrase Search & Navigation:**
-   * A real-time keyword input box highlights all exact matches in yellow across the insights document, enabling prompt data queries and lookup.
-   * Interactive recent session chips are stored in `localStorage` (`insightstream-session-chips`) for one-click switching between recently parsed document analyses.
-
-5. **Programmatic Auditory Alerts:**
-   * Synthesizes audio feedback using a zero-dependency Web Audio API oscillator context.
-   * When configured in user settings, it plays an upbeat double-note bell chime (D5 to A5) on analysis completion or a warning drone on processing errors.
-
+[![Tech Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20React%20%7C%20MongoDB%20%7C%20Redis%20%7C%20Socket.io-orange?style=flat-square)](https://github.com)
+[![AI Orchestration](https://img.shields.io/badge/AI-Groq%20Llama%203.3-blue?style=flat-square)](https://github.com)
+[![Architecture](https://img.shields.io/badge/Architecture-Asynchronous%20BullMQ-green?style=flat-square)](https://github.com)
 
 ---
 
-## 🛠️ Technology Stack
+## 📋 Table of Contents
+- [Overview](#-overview)
+- [What Makes InsightStream Different](#-what-makes-insightstream-different)
+- [Core Features & Modules](#-core-features--modules)
+- [System Architecture](#-system-architecture)
+- [Tech Stack](#-tech-stack)
+- [Project Directory Structure](#-project-directory-structure)
+- [Core Data Pipelines & Lifecycles](#-core-data-pipelines--lifecycles)
+- [Environment Variables](#-environment-variables)
+- [Installation & Setup](#-installation--setup)
+- [Security & Optimization Features](#-security--optimization-features)
+- [License](#-license)
+
+---
+
+## 🌟 Overview
+
+InsightStream processes complex document analysis jobs asynchronously. Because Large Language Model (LLM) queries are computationally heavy and highly latent, running analysis directly in the HTTP request-response cycle degrades user experience and blocks servers.
+
+InsightStream handles this by decoupling the architecture: the Express server registers the upload, pushes the job to a **BullMQ** queue backed by **Redis**, and instantly returns a `202 Accepted` status. A separate **background worker** pulls the job, interacts with the **Groq API** to process the document text, and saves the generated markdown insights to **MongoDB**. Real-time updates are pushed to the client using **Socket.io** event triggers, and subsequent reads are optimized using an in-memory **Cache-Aside Redis configuration**.
+
+---
+
+## What Makes InsightStream Different
+
+These are the engineering highlights that separate InsightStream from simple LLM wrapper applications:
+
+| Feature | Implementation |
+|---|---|
+| ⏳ **Asynchronous Ingestion** | Prevents request timeouts by instantly delegating analysis to a background queue thread. |
+| 🔄 **BullMQ Job Queue** | Employs Redis-based job queues to ensure task durability, state transitions, and auto-retries on failures. |
+| ⚡ **Cache-Aside Reads** | Bypasses database roundtrips completely for read operations, serving completed analysis directly from Redis. |
+| 📊 **Real-Time Progress** | Pushes granular status events (Pending ➜ Processing ➜ Completed) directly to the user dashboard via Socket.io. |
+| 🛡️ **JWT Route Guards** | Secures API requests and socket rooms, ensuring users only access their own uploaded files. |
+
+---
+
+## ✨ Core Features & Modules
+
+### 1. Document Management & Processing
+- **Asynchronous Analysis**: Upload raw text files and run complex structural analysis pipelines.
+- **Dynamic Expiry Settings**: Support for setting specific retention/expiry timers on documents (24 Hours, 7 Days, 30 Days, or Indefinite).
+
+### 2. Live Workspace Dashboard
+- **Interactive Markdown Notebook**: View completed, detailed analysis and LLM insights in a sleek interface.
+- **Live Status Feed**: Progress bars showing queue percentages and status updates as workers process text.
+
+### 3. User Authentication
+- **Secure Registration & Login**: Encrypted password storage using Bcrypt.
+- **Token Authorization**: Custom JWT authorization headers securing private document endpoints.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Client (React Frontend)
+    participant API as API Server (Express)
+    participant Middleware as Auth Middleware
+    participant DB as Database (MongoDB)
+    participant Queue as Redis Queue (BullMQ)
+    participant Worker as Background Worker
+    participant Groq as Groq AI API (Llama 3.3)
+
+    Note over Client: User Login/Register Flow
+    Client->>API: POST /api/auth/login { email, password }
+    API->>DB: Query User by Email (verify password)
+    DB-->>API: User details
+    API-->>Client: 200 OK { token, user }
+    Note over Client: Stores token in localStorage
+
+    Note over Client: Document Upload Flow (Protected)
+    Client->>API: POST /api/upload { content } [Auth Header: Bearer JWT]
+    API->>Middleware: Verify JWT Token
+    alt Token Invalid
+        Middleware-->>Client: 401 Unauthorized
+    else Token Valid
+        Middleware->>API: Attach req.user
+        API->>DB: Create Document (status: 'Pending', user: req.user._id)
+        DB-->>API: Document saved with _id
+        API->>Queue: Add job "process-document" { documentId }
+        Queue-->>API: Job Queued
+        API-->>Client: 202 Accepted { success: true, documentId }
+    end
+
+    Note over Client: UI shifts to progress dashboard<br/>Subscribes to Socket.io events
+    
+    Queue->>Worker: Dequeue Job
+    Worker->>DB: Update status to 'Processing'
+    Worker->>Queue: job.updateProgress(10, 20)
+    Queue-->>API: Progress Event Triggered
+    API->>Client: Socket.io Emit ("progress", 20%)
+
+    Worker->>Groq: Chat completion request (llama-3.3-70b-versatile)
+    Groq-->>Worker: Llama Insights Text (Markdown)
+
+    Worker->>DB: Save insights & update status to 'Completed'
+    Worker->>Queue: job.updateProgress(100)
+    Queue-->>API: Completed Event Triggered
+    API->>Client: Socket.io Emit ("progress", 100%, status: "Completed")
+
+    Note over Client: Fetch Document Flow (Protected)
+    Client->>API: GET /api/documents/:id [Auth Header: Bearer JWT]
+    API->>Middleware: Verify JWT Token
+    Middleware->>API: Attach req.user
+    API->>Queue: Check Redis Cache (key: documentId)
+    alt Cache Hit (Verified user ownership)
+        Queue-->>API: Return cached JSON
+        API-->>Client: 200 OK { document }
+    else Cache Miss / Verification Failure
+        API->>DB: Query MongoDB { _id: id, user: req.user._id }
+        DB-->>API: Document details
+        API->>Queue: Save in Redis (TTL: 1 hour)
+        API-->>Client: 200 OK { document }
+    end
+```
+
+---
+
+## 🛠️ Tech Stack
 
 ### Backend
-* **Runtime Environment**: Node.js (ES Modules configuration)
-* **API Framework**: Express.js
-* **Database**: MongoDB (Mongoose ODM layer)
-* **Message Broker / Queue**: Redis (BullMQ engine)
-* **AI Orchestration**: Groq Cloud API (Llama 3.3 70b via OpenAI SDK)
-* **Real-time Push**: Socket.io
-* **Authentication**: State-less JWT (`jsonwebtoken`) & cryptographically hashed credentials (`bcryptjs`)
+- **Node.js**: Asynchronous JavaScript runtime environment.
+- **Express.js**: HTTP server gateway framework.
+- **MongoDB + Mongoose**: Document store and schema validation modeling.
+- **Redis & BullMQ**: Multi-threaded asynchronous queue engine and caching database.
+- **Groq SDK**: Access point for high-performance `llama-3.3-70b-versatile` text generation.
+- **JWT (JSON Web Tokens)**: Decoded session tokens securing routes.
+- **Socket.io**: WebSockets for push-style progress updates.
 
 ### Frontend
-* **Build System & Dev Server**: Vite
-* **Library**: React 19 (React Compiler disabled for optimal stability)
-* **Client-Side Routing**: React Router DOM v7
-* **CSS Framework**: Tailwind CSS v4 (configured with glassmorphic variables)
-* **Interactive UI & Transitions**: GSAP (GreenSock Animation Platform) & Framer Motion
-* **Typography & Icons**: Lucide React
-* **Markdown Parser**: React Markdown
+- **React + Vite**: Responsive client building block.
+- **Vanilla CSS**: Foundational and optimized premium styling framework.
+- **Context Providers**: Custom Auth, Socket, and Toast context engines.
 
 ---
 
-## 📁 Repository Structure
+## 📁 Project Directory Structure
 
-```directory
-Insight Stream/
-├── backend/
+```text
+InsightStream/
+├── backend/                  # Node.js + Express Server & BullMQ Worker
 │   ├── src/
-│   │   ├── config/              # Redis (queue.js) and Database (db.js) configurations
-│   │   ├── controllers/         # Express controllers (authController, documentController)
-│   │   ├── middleware/          # Express middlewares (authMiddleware for JWT validation)
-│   │   ├── models/              # Mongoose schemas (Document and User models)
-│   │   ├── routes/              # Express API routes (authRoutes, documentRoutes)
-│   │   ├── utils/               # Socket.io event listeners (socketListeners)
-│   │   ├── workers/             # BullMQ document processing workers (documentWorker)
-│   │   ├── app.js               # Express application configuration (CORS, route mount)
-│   │   └── index.js             # Express API entrypoint & HTTP server with Socket.io setup
-│   ├── .env.example             # Template for local backend configurations
-│   ├── .env                     # Local environment file (ignored by Git)
+│   │   ├── config/           # Database (db.js) and Queue (queue.js) configs
+│   │   ├── controllers/      # Route controllers (authController.js, documentController.js)
+│   │   ├── middleware/       # JWT Authorization Guard (authMiddleware.js)
+│   │   ├── models/           # Mongoose Document schemas (User.js, Document.js)
+│   │   ├── routes/           # Express Endpoint routers (authRoutes.js, documentRoutes.js)
+│   │   ├── utils/            # Socket events listeners (socketListeners.js)
+│   │   ├── workers/          # Background tasks process (documentWorker.js)
+│   │   ├── app.js            # Express application bootstrap
+│   │   ├── index.js          # Main entrypoint initializing servers and sockets
+│   │   ├── checkQueue.js     # Debug tool for queue verification
+│   │   ├── inspectDb.js      # DB inspection script
+│   │   └── flushRedis.js     # Redis flush utility
+│   ├── .env                  # Port, MongoDB, Redis, and Groq configuration API keys
 │   └── package.json
-└── frontend/
-    ├── src/
-    │   ├── assets/              # Static assets
-    │   ├── components/          # UI components (Dashboard, ErrorBoundary, Header, Workspace, Settings, etc.)
-    │   ├── context/             # React Context (AuthProvider, SocketProvider, ToastProvider)
-    │   ├── utils/               # Helper utilities (titleGenerator)
-    │   ├── App.css              # Main App styling
-    │   ├── App.jsx              # Application Layout & Routes
-    │   ├── config.js            # Centralized API url config
-    │   ├── index.css            # Custom CSS system and styling variables
-    │   └── main.jsx             # React client entrypoint
-    ├── .env.example             # Template for local frontend configurations
-    ├── package.json
-    └── vite.config.js
+│
+├── frontend/                 # React SPA
+│   ├── src/
+│   │   ├── assets/           # Client assets and images
+│   │   ├── components/       # UI Components (Dashboard, Workspace, Login, Register, Header, etc.)
+│   │   ├── context/          # React context handlers (AuthProvider, SocketProvider, ToastProvider)
+│   │   ├── utils/            # Helper utilities (titleGenerator.js)
+│   │   ├── App.css           # Workspace stylesheets
+│   │   ├── App.jsx           # Routing configuration
+│   │   ├── index.css         # Styling system declarations
+│   │   ├── main.jsx          # React app DOM bootstrap
+│   │   └── config.js         # API and WebSocket host bindings
+│   ├── index.html
+│   └── package.json
 ```
 
 ---
 
-## 🚀 Environment Configuration & Setup
+## 🔄 Core Data Pipelines & Lifecycles
 
-### Environment Configuration
-
-Security is paramount. Sensitive credentials must never be committed to source control.
-
-> [!WARNING]
-> Never commit `.env` files containing credentials to version control. Both frontend and backend directories are configured with `.gitignore` rules to block `.env` uploads.
-
-To configure local environments, copy the provided templates:
-1. **Backend**:
-   * Navigate to `backend/` and copy `.env.example`: `cp .env.example .env`
-   * Open `.env` and fill in your database endpoints, Redis connections, and your `GROQ_API_KEY`.
-2. **Frontend**:
-   * Navigate to `frontend/` and copy `.env.example`: `cp .env.example .env`
-   * Open `.env` and define the `VITE_API_URL` targeting your API gateway (typically `http://localhost:3000`).
-
----
-
-## 📦 Deployment & Production Architecture
-
-### Local Setup Instructions
-
-#### Prerequisites
-* **Node.js** (v18.x or v20.x LTS)
-* **MongoDB** instance (local process or MongoDB Atlas cluster)
-* **Redis Server** running locally (Port `6379`) or hosted remotely
-
-#### Step 1: Backend & Worker Boot
-1. Navigate to the backend directory and install dependencies:
-   ```bash
-   cd backend
-   npm install
-   ```
-2. Configure the `.env` file according to the instructions above.
-3. Start the Express API gateway:
-   ```bash
-   npm run dev
-   ```
-4. In a separate terminal session, start the background worker process:
-   ```bash
-   npm run worker
-   ```
-
-#### Step 2: Frontend Dashboard Boot
-1. Navigate to the frontend directory and install dependencies:
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-2. Configure the `.env` file according to the instructions above.
-3. Start the Vite development server:
-   ```bash
-   npm run dev
-   ```
-4. Open your browser and navigate to `http://localhost:5173`.
-
-### Production Deployment Strategy
-
-```
-                          ┌───────────────────────────┐
-                          │   Vercel / Netlify CDN    │
-                          │   (React Static Assets)   │
-                          └──────────────┬────────────┘
-                                         │
-                                         │ HTTPS / WSS
-                                         ▼
-    ┌───────────────────────────────────────────────────────────────────────┐
-    │                       Stateless AWS Application Load Balancer         │
-    └───────────────────┬───────────────────────────────────┬───────────────┘
-                        │                                   │
-                        │ HTTP / Sticky Websockets          │ HTTP / Queue Stats
-                        ▼                                   ▼
-    ┌───────────────────────────────────────┐   ┌───────────────────────────┐
-    │     API Server Cluster (Express)      │   │   Queue Dashboard (Arena) │
-    │     Auto-scaled on CPU / Mem          │   │   (Basic Auth Secured)    │
-    │     AWS ECS / Fargate                 │   │   AWS ECS / Fargate       │
-    └───────────────────┬───────────────────┘   └───────────┬───────────────┘
-                        │                                   │
-                        ▼                                   ▼
-    ┌───────────────────────────────────────────────────────────────────────┐
-    │                       Redis Cluster (Upstash / Aiven)                 │
-    │                    - Distributed Cache (Cache-Aside)                  │
-    │                    - BullMQ Message Broker                            │
-    └───────────────────▲───────────────────────────────────▲───────────────┘
-                        │                                   │
-                        │ Dequeue / Job Update              │ Read/Write Cache
-                        ▼                                   │
-    ┌───────────────────────────────────────┐               │
-    │       Background Worker Cluster       │               │
-    │       Auto-scaled on Queue Length     │               │
-    │       AWS ECS / Fargate               │               │
-    └───────────────────┬───────────────────┘               │
-                        │                                   │
-                        │ Persistent Saves                  │
-                        ▼                                   │
-    ┌───────────────────────────────────────────────────────┴───────────────┐
-    │                MongoDB Atlas Cluster (Sharded Primary/Replica)        │
-    └───────────────────────────────────────────────────────────────────────┘
+### 1. Queue Ingestion & Analysis Flow
+```mermaid
+graph TD
+    Upload[Client uploads text document] --> SaveDoc[API saves document: Pending]
+    SaveDoc --> Enqueue[Enqueue BullMQ job 'process-document']
+    Enqueue --> APIResponse[API returns 202 status immediately]
+    Enqueue --> Worker[Background worker pulls job]
+    Worker --> APIStatus[Worker marks document: Processing]
+    Worker --> LLMQuery[Queries Groq Llama 3.3 API]
+    LLMQuery --> SaveResult[Saves generated markdown to MongoDB]
+    SaveResult --> MarkDone[Updates document: Completed]
 ```
 
-* **Client Layer:** Static files compiled via `npm run build` and hosted on Vercel/Netlify.
-* **API Gateway & Routing:** Express API instances deployed behind a load balancer with sticky sessions enabled for WebSocket handshakes.
-* **Worker Fleet:** Distributed workers run as stateless container pools (AWS ECS/Fargate) scaled independently based on BullMQ backlog metrics.
-* **Databases:** MongoDB Atlas for persistence and Upstash or Redis Enterprise for high-availability memory-caching and task queues.
-
-### Manual Verification & Demo Walkthrough
-
-In the absence of a live hosted URL, execute the following workflow to verify end-to-end functionality:
-
-1. **User Authentication:** Navigate to `http://localhost:5173/register` and register a new profile. Logs will show a state transition and redirect to login. Upon logging in, the server issues a JWT which is stored locally.
-2. **Asynchronous Dispatch:** Go to the home screen and paste a block of unstructured text (e.g., a news article). Click **Analyze Document**.
-3. **202 Response Verification:** The server responds immediately with a `202 Accepted` header and a `documentId`. The UI uses this ID to open a WebSocket room.
-4. **WebSocket Stream Tracking:** The dashboard renders a progress stepper reflecting background status changes:
-   * **10% (Queued):** Job successfully written to BullMQ.
-   * **20% (Processing):** Worker picked up the job and locked it.
-   * **70% (Generating Insights):** Groq completion initiated.
-   * **100% (Completed):** Insights parsed, stored, cache cleared, socket notification pushed.
-5. **Cache-Aside Validation:**
-   * The client fetches the completed document. Check your terminal output: the first fetch results in a **Cache Miss**, loading details from MongoDB and caching them in Redis with a 1-hour TTL.
-   * Reload the page. Subsequent requests trigger a **Cache Hit**, returning the document directly from Redis under 15ms.
+### 2. Cache-Aside Retrieval Pipeline
+```mermaid
+graph TD
+    GetReq[Client GET /api/documents/:id] --> CheckCache{Check Redis Cache}
+    CheckCache -->|Hit| ReturnCache[Return cached document JSON]
+    CheckCache -->|Miss| QueryDB[Query MongoDB]
+    QueryDB --> StoreCache[Store in Redis with 1 Hour TTL]
+    StoreCache --> ReturnDB[Return document JSON]
+```
 
 ---
 
-## 🚦 Reliability & Testing
+## 🔑 Environment Variables
 
-### Planned Testing Roadmap
+Create a `.env` file inside `backend/`:
 
-To ensure pipeline stability and data integrity, the system is designed to accommodate the following test suites:
-
-#### 1. Unit Testing (Vitest / Jest)
-* **Middleware Isolation:** Verify JWT validation and check that requests without valid authorization headers return `401 Unauthorized`.
-* **Worker Business Logic:** Mock the OpenAI/Groq API client to ensure response parsing works under expected structures and handles missing data gracefully.
-
-#### 2. Integration Testing (Supertest & Docker Container Testbeds)
-* **REST Endpoints:** Use Supertest to fire requests against Express and assert database inputs match expectations.
-* **Database & Queue Wireframe:** Use Testcontainers to run isolated MongoDB and Redis instances in Docker during local CI runs. Assert that dispatching jobs routes them into BullMQ correctly.
-
-#### 3. Queue Reliability & Resilience Testing
-* **SIGTERM/SIGINT Graceful Shutdowns:** Workers intercept termination signals to release job locks back to Redis instead of leaving them stuck in an active state.
-* **Exponential Retry Backoff:** Configure BullMQ retry options to gracefully recover from temporary external downstream API outages (e.g., Groq rate limits):
-  ```javascript
-  attempts: 3,
-  backoff: {
-    type: 'exponential',
-    delay: 2000
-  }
-  ```
-* **Dead Letter Queue (DLQ) Safeguards:** Ensure that if a document fails processing after maximum retries, the worker catches the failure, updates MongoDB status to `Failed`, clears the Redis key, and sends an alert.
+```env
+PORT=3000
+MONGODB_URL=your_mongodb_connection_string
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_URL=redis://127.0.0.1:6379
+GROQ_API_KEY=your_groq_api_key
+JWT_SECRET=your_jwt_secret_key
+```
 
 ---
 
-## 🔄 Real-time Pipeline Flow
+## ⚡ Installation & Setup
 
-1. **Authentication**: The user signs up (`/api/auth/register`) or logs in (`/api/auth/login`) through the frontend. The server returns a JWT token, which is stored in `localStorage` and sent in the `Authorization: Bearer <token>` header for all authenticated requests.
-2. **Upload**: The user pastes a raw text payload and triggers document analysis.
-3. **Acceptance & Queueing**: The backend creates a document record in MongoDB marked as `Pending` and references the authenticated user's ID (`user: req.user._id`). A job is added to the Redis queue via BullMQ. The server immediately returns a `202 Accepted` response with the `documentId`.
-4. **Real-time Tracking**: The frontend transitions to the progress screen, connects to the WebSocket, and listens for progress updates corresponding to the `documentId`.
-5. **Processing**: The BullMQ worker dequeues the job:
-   - Updates the status to `Processing` (20% progress event).
-   - Invokes the Groq Cloud API using the Llama 3.3 model (`llama-3.3-70b-versatile`) via the OpenAI SDK to generate document insights in Markdown.
-   - Saves the generated insights to the document record in MongoDB and sets the status to `Completed` (100% progress event).
-   - Clears the document's cached entry from Redis to ensure subsequent requests fetch fresh completed data.
-6. **WebSockets Broadcast**: Express listens to BullMQ queue events and broadcasts progress steps (10% -> 20% -> 70% -> 100%) to connected clients via Socket.io.
-7. **Insight Reveal & Caching**: The frontend receives the completion event, queries the backend (`GET /api/documents/:id`), and retrieves the results. The backend utilizes a **Cache-Aside Pattern**:
-   - **Cache Miss**: Fetches document from MongoDB, verifies user ownership, stringifies and caches the record in Redis with a 1-hour TTL, and returns it.
-   - **Cache Hit**: Directly returns the document from Redis after verifying user ownership, saving database queries.
+### Prerequisites
+- **Node.js** (v18.0.0 or higher)
+- **MongoDB** running locally or on Atlas
+- **Redis** running locally (port 6379)
+
+### 1. Setup Backend Server
+```bash
+cd backend
+npm install
+npm run dev
+```
+The API server starts at `http://localhost:3000`.
+
+### 2. Setup Frontend Application
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+The Vite development server starts at `http://localhost:5173`.
 
 ---
 
-## 📈 Development Lifecycle & Git Integrity
+## 🧠 Security & Optimization Features
 
-This project represents an iterative, production-grade engineering cycle. Reviewers are encouraged to explore the **Git Commit History** to review how the codebase evolved:
+- **Decoupled Main Thread**: Heavy AI text generation logic is handled on a background process queue, leaving the HTTP server highly responsive.
+- **Redis Cache-Aside**: Significantly drops database read overhead. The cache is automatically cleared on deletions or updates.
+- **Encrypted Password Storage**: Uses Bcrypt hashing for password credentials.
+- **Route Guard Middleware**: Validates JWT signatures and verifies owner IDs before granting document access.
 
-* **Initial Setup & Schema Architecture:** Structural schema setup for relational security (Users & Documents) and validation layers.
-* **Asynchronous Queue Integration:** Decoupling processing logic by introducing Redis and BullMQ worker infrastructure.
-* **WebSocket Pipelines:** Establishing real-time event-driven bridges between the background worker updates and Socket.io.
-* **Tenant-Isolated Caching:** Layering the Cache-Aside architecture onto the document retrieval route with ownership verification.
-* **UI Polish & State Management:** Crafting responsive dashboard interfaces utilizing Vite, React Context providers, Tailwind CSS v4, and dynamic transitions.
+---
+
+## 📜 License
+
+Distributed under the **MIT License**. See `LICENSE` for details.
