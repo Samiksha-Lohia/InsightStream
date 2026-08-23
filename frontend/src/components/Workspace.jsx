@@ -578,7 +578,7 @@ export default function Workspace({ activeDocId, setActiveDocId }) {
   ];
 
   const activeStepIdx = localProgress >= 100 ? 3 : localProgress >= 70 ? 2 : localProgress >= 20 ? 1 : localProgress >= 10 ? 0 : -1;
-  const fillWidthPercent = activeStepIdx === -1 ? 0 : (activeStepIdx / 3) * 100;
+  const fillWidthPercent = activeStepIdx === -1 ? 0 : activeStepIdx * 25;
 
   return (
     <section className="view wrap" id="view-workspace">
