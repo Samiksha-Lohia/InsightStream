@@ -82,7 +82,15 @@ const documentWorker = new Worker(
         messages: [
           {
             role: "user",
-            content: `Analyze this document and extract key insights: ${document.content}`
+            content: `Analyze the following document and extract key insights. 
+Format the response using clean Markdown:
+- Use '##' for section headers.
+- Use a bulleted list ('-') for insights.
+- Make each insight's category/title bold, followed by a colon and description (e.g., "- **Category Name**: Detailed description").
+- DO NOT use markdown tables, HTML tags, or code blocks. Keep it concise, structured, and readable.
+
+Document content:
+${document.content}`
           }
         ]
       });
