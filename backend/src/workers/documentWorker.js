@@ -78,7 +78,7 @@ const documentWorker = new Worker(
       // 3. The AI Call
       console.log(`[⚙️ Worker] Querying Groq AI for document: ${documentId}`);
       const chatCompletion = await groq.chat.completions.create({
-        model: process.env.GROQ_MODEL || "gemma2-9b-it",
+        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
         messages: [
           {
             role: "user",
