@@ -16,7 +16,11 @@ app.use(cors({
     if (!origin) return callback(null, true);
     // Strip trailing slash if present
     const cleanOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-    if (allowedOrigins.indexOf(cleanOrigin) !== -1 || cleanOrigin.startsWith("http://localhost:")) {
+    if (
+      allowedOrigins.indexOf(cleanOrigin) !== -1 || 
+      cleanOrigin.startsWith("http://localhost:") ||
+      cleanOrigin.endsWith(".vercel.app")
+    ) {
       return callback(null, true);
     }
     return callback(new Error("Not allowed by CORS"));
