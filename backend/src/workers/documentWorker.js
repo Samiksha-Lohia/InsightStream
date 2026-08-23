@@ -78,7 +78,7 @@ const documentWorker = new Worker(
       // 3. The AI Call
       console.log(`[⚙️ Worker] Querying Groq AI for document: ${documentId}`);
       const chatCompletion = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: process.env.GROQ_MODEL || "llama-3.3-70b-specdec",
         messages: [
           {
             role: "user",
